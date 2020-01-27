@@ -1,8 +1,8 @@
 Package: seagull
 Type: Package
 Title: Lasso, Group Lasso, and Sparse-Group Lasso for Mixed Models
-Version: 1.0.3
-Date: 2020-01-14
+Version: 1.0.4
+Date: 2020-01-27
 Authors@R: c(person("Jan", "Klosa", 
                role = c("aut", "cre"),
                email = "klosa@fbn-dummerstorf.de"),
@@ -25,9 +25,9 @@ RoxygenNote: 7.0.2
 Suggests: testthat, knitr, rmarkdown
 VignetteBuilder: knitr
 NeedsCompilation: yes
-Packaged: 2020-01-14 15:34:19 UTC; klosa
+Packaged: 2020-01-27 16:34:45 UTC; klosa
 Author: Jan Klosa [aut, cre],
   Noah Simon [ths],
   Dörte Wittenburg [ths]
 Repository: CRAN
-Date/Publication: 2020-01-19 16:20:02 UTC
+Date/Publication: 2020-01-27 17:10:04 UTC

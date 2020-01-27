@@ -1,6 +1,6 @@
-## ----gobal_options, include=FALSE---------------------------------------------
-knitr::opts_chunk$set(fig.width=10, fig.height=5, 
-                      echo=FALSE)
+## ---- echo = FALSE, message = FALSE-------------------------------------------
+knitr::opts_chunk$set(fig.width = 10, fig.height = 5, 
+                      echo = FALSE, collapse = TRUE, comment = "#>")
 
 ## ---- eval = TRUE, echo = TRUE------------------------------------------------
 library("seagull")
