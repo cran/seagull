@@ -1,3 +1,11 @@
+# seagull 1.0.6
+
+* Deleted "trace_progress = T" in all examples, since it caused --run-donttest
+to fail.
+
+* Added a reference in the package documentation.
+
+
 # seagull 1.0.5
 
 * Wrapped the entire example section in seagull.R into a \donttest environment

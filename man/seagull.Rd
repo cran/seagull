@@ -123,9 +123,7 @@ random effect is set to zero by the user, the function drops an error and the
 calculation will not start.
 }
 \examples{
-
 \donttest{
-
 set.seed(62)
 n <- 50  ## observations
 p <- 8   ## variables
@@ -176,22 +174,27 @@ data(seagull_data)
 
 fit_l1 <- seagull(y = phenotypes[,1], Z = genotypes, alpha = 1.0)
 fit_l2 <- seagull(y = phenotypes[,2], Z = genotypes, alpha = 1.0)
-fit_l3 <- seagull(y = phenotypes[,3], Z = genotypes, alpha = 1.0,
-          trace_progress = T)
+fit_l3 <- seagull(y = phenotypes[,3], Z = genotypes, alpha = 1.0)
 
 fit_gl1 <- seagull(y = phenotypes[,1], Z = genotypes, alpha = 0.0,
            groups = groups)
 fit_gl2 <- seagull(y = phenotypes[,2], Z = genotypes, alpha = 0.0,
            groups = groups)
 fit_gl3 <- seagull(y = phenotypes[,3], Z = genotypes, alpha = 0.0,
-           groups = groups, trace_progress = T)
+           groups = groups)
 
 fit_sgl1 <- seagull(y = phenotypes[,1], Z = genotypes, groups = groups)
 fit_sgl2 <- seagull(y = phenotypes[,2], Z = genotypes, groups = groups)
-fit_sgl3 <- seagull(y = phenotypes[,3], Z = genotypes, groups = groups,
-            trace_progress = T)
+fit_sgl3 <- seagull(y = phenotypes[,3], Z = genotypes, groups = groups)
 }
 
+}
+\references{
+Simon, N., Friedman, J., Hastie T., and Tibshirani, R. (2011):
+\emph{A Sparse-Group Lasso},
+\url{http://faculty.washington.edu/nrsimon/SGLpaper.pdf},
+\emph{Journal of Computational and Graphical Statistics, Vol. 22(2), 231-245,
+April 2013}
 }
 \seealso{
 \code{\link{plot}}
