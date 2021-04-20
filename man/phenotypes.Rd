@@ -4,8 +4,10 @@
 \name{phenotypes}
 \alias{phenotypes}
 \title{Simulated phenotypes}
-\format{A matrix with of 1000 rows and 3 columns. One row per individual. One
-column per trait.}
+\format{
+A matrix with of 1000 rows and 3 columns. One row per individual. One
+column per trait.
+}
 \usage{
 phenotypes
 }

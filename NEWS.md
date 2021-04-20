@@ -1,3 +1,24 @@
+# seagull 1.1.0
+
+* Added new algorithm: fitted group lasso.
+
+* Added new algorithm: fitted sparse-group lasso.
+
+* Added new parameter: l2_fitted_values to enable the new algorithms.
+
+* Added new parameter: step_size - mandatory for the fitted sparse-group lasso.
+
+* Added new parameter: delta - mandatory for both new algorithms.
+
+* Added new parameter: standardize to enable automated standardization of input
+data.
+
+* Imported the R package "matrixStats" since it is used for the standardization.
+
+* Updated the help pages and vignette to provide information about the new
+algorithms and parameters.
+
+
 # seagull 1.0.6
 
 * Deleted "trace_progress = T" in all examples, since it caused --run-donttest

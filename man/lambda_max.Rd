@@ -2,11 +2,23 @@
 % Please edit documentation in R/RcppExports.R
 \name{lambda_max}
 \alias{lambda_max}
+\alias{lambda_max_fitted_group_lasso}
 \alias{lambda_max_group_lasso}
 \alias{lambda_max_lasso}
 \alias{lambda_max_sparse_group_lasso}
 \title{Maximal \eqn{\lambda}}
 \usage{
+lambda_max_fitted_group_lasso(
+  DELTA,
+  VECTOR_Y,
+  VECTOR_GROUPS,
+  VECTOR_WEIGHTS_FEATURES,
+  VECTOR_WEIGHTS_GROUPS,
+  VECTOR_FULL_COLUMN_RANK,
+  VECTOR_BETA,
+  MATRIX_X
+)
+
 lambda_max_group_lasso(
   VECTOR_Y,
   VECTOR_GROUPS,
@@ -27,6 +39,9 @@ lambda_max_sparse_group_lasso(
 )
 }
 \arguments{
+\item{DELTA}{numeric value, which is squared and added to the main diagonal
+of \eqn{Z^{(l)T} Z^{(l)}} for group l, if this matrix is not invertible.}
+
 \item{VECTOR_Y}{numeric vector of observations.}
 
 \item{VECTOR_GROUPS}{integer vector specifying which effect (fixed and
@@ -34,6 +49,13 @@ random) belongs to which group.}
 
 \item{VECTOR_WEIGHTS_FEATURES}{numeric vector of weights for the vectors of
 fixed and random effects \eqn{[b^T, u^T]^T}.}
+
+\item{VECTOR_WEIGHTS_GROUPS}{numeric vector of pre-calculated weights for
+each group.}
+
+\item{VECTOR_FULL_COLUMN_RANK}{Boolean vector, which harbors the information
+of whether or not the group-wise parts of the filtered matrix Z, i.e.,
+\eqn{Z^{(l)}} for each group l, have full column rank.}
 
 \item{VECTOR_BETA}{numeric vector of features. At the end of this function,
 the random effects are initialized with zero, but the fixed effects are

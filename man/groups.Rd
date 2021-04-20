@@ -4,7 +4,9 @@
 \name{groups}
 \alias{groups}
 \title{Group indices for explanatory variables}
-\format{A vector consisting of 466 integer values.}
+\format{
+A vector consisting of 466 integer values.
+}
 \usage{
 groups
 }

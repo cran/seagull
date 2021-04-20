@@ -2,21 +2,82 @@
 % Please edit documentation in R/RcppExports.R
 \name{lasso_variants}
 \alias{lasso_variants}
+\alias{seagull_fitted_group_lasso}
+\alias{fitted_group_lasso}
+\alias{seagull_fitted_sparse_group_lasso}
+\alias{fitted_sparse_group_lasso}
 \alias{seagull_group_lasso}
 \alias{group_lasso}
 \alias{seagull_lasso}
 \alias{lasso}
 \alias{seagull_sparse_group_lasso}
 \alias{sparse_group_lasso}
-\title{Lasso, group lasso, and sparse-group lasso}
+\title{Lasso, (fitted) group lasso, and (fitted) sparse-group lasso}
 \usage{
+seagull_fitted_group_lasso(
+  VECTOR_Yc,
+  Y_MEAN,
+  MATRIX_Xc,
+  VECTOR_Xc_MEANS,
+  VECTOR_Xc_STANDARD_DEVIATIONS,
+  VECTOR_WEIGHTS_FEATURESc,
+  VECTOR_WEIGHTS_GROUPSc,
+  VECTOR_FULL_COLUMN_RANK,
+  VECTOR_GROUPS,
+  VECTOR_BETAc,
+  VECTOR_INDEX_PERMUTATION,
+  VECTOR_INDEX_EXCLUDE,
+  EPSILON_CONVERGENCE,
+  ITERATION_MAX,
+  GAMMA,
+  LAMBDA_MAX,
+  PROPORTION_XI,
+  DELTA,
+  NUMBER_INTERVALS,
+  NUMBER_FIXED_EFFECTS,
+  NUMBER_VARIABLES,
+  INTERNAL_STANDARDIZATION,
+  TRACE_PROGRESS
+)
+
+seagull_fitted_sparse_group_lasso(
+  VECTOR_Yc,
+  Y_MEAN,
+  MATRIX_Xc,
+  VECTOR_Xc_MEANS,
+  VECTOR_Xc_STANDARD_DEVIATIONS,
+  VECTOR_WEIGHTS_FEATURESc,
+  VECTOR_WEIGHTS_GROUPSc,
+  VECTOR_FULL_COLUMN_RANK,
+  VECTOR_GROUPS,
+  VECTOR_BETAc,
+  VECTOR_INDEX_PERMUTATION,
+  VECTOR_INDEX_EXCLUDE,
+  ALPHA,
+  EPSILON_CONVERGENCE,
+  ITERATION_MAX,
+  LAMBDA_MAX,
+  PROPORTION_XI,
+  DELTA,
+  STEP_SIZE,
+  NUMBER_INTERVALS,
+  NUMBER_FIXED_EFFECTS,
+  NUMBER_VARIABLES,
+  INTERNAL_STANDARDIZATION,
+  TRACE_PROGRESS
+)
+
 seagull_group_lasso(
   VECTOR_Yc,
+  Y_MEAN,
   MATRIX_Xc,
+  VECTOR_Xc_MEANS,
+  VECTOR_Xc_STANDARD_DEVIATIONS,
   VECTOR_WEIGHTS_FEATURESc,
   VECTOR_GROUPS,
   VECTOR_BETAc,
   VECTOR_INDEX_PERMUTATION,
+  VECTOR_INDEX_EXCLUDE,
   EPSILON_CONVERGENCE,
   ITERATION_MAX,
   GAMMA,
@@ -24,14 +85,20 @@ seagull_group_lasso(
   PROPORTION_XI,
   NUMBER_INTERVALS,
   NUMBER_FIXED_EFFECTS,
+  NUMBER_VARIABLES,
+  INTERNAL_STANDARDIZATION,
   TRACE_PROGRESS
 )
 
 seagull_lasso(
   VECTOR_Yc,
+  Y_MEAN,
   MATRIX_Xc,
+  VECTOR_Xc_MEANS,
+  VECTOR_Xc_STANDARD_DEVIATIONS,
   VECTOR_WEIGHTS_FEATURESc,
   VECTOR_BETAc,
+  VECTOR_INDEX_EXCLUDE,
   EPSILON_CONVERGENCE,
   ITERATION_MAX,
   GAMMA,
@@ -39,16 +106,22 @@ seagull_lasso(
   PROPORTION_XI,
   NUMBER_INTERVALS,
   NUMBER_FIXED_EFFECTS,
+  NUMBER_VARIABLES,
+  INTERNAL_STANDARDIZATION,
   TRACE_PROGRESS
 )
 
 seagull_sparse_group_lasso(
   VECTOR_Yc,
+  Y_MEAN,
   MATRIX_Xc,
+  VECTOR_Xc_MEANS,
+  VECTOR_Xc_STANDARD_DEVIATIONS,
   VECTOR_WEIGHTS_FEATURESc,
   VECTOR_GROUPS,
   VECTOR_BETAc,
   VECTOR_INDEX_PERMUTATION,
+  VECTOR_INDEX_EXCLUDE,
   ALPHA,
   EPSILON_CONVERGENCE,
   ITERATION_MAX,
@@ -57,19 +130,37 @@ seagull_sparse_group_lasso(
   PROPORTION_XI,
   NUMBER_INTERVALS,
   NUMBER_FIXED_EFFECTS,
+  NUMBER_VARIABLES,
+  INTERNAL_STANDARDIZATION,
   TRACE_PROGRESS
 )
 }
 \arguments{
 \item{VECTOR_Yc}{numeric vector of observations.}
 
+\item{Y_MEAN}{arithmetic mean of VECTOR_Yc.}
+
 \item{MATRIX_Xc}{numeric design matrix relating y to fixed and random
 effects \eqn{[X Z]}. The columns may be permuted corresponding to their
 group assignments.}
 
+\item{VECTOR_Xc_MEANS}{numeric vector of arithmetic means of each column
+of MATRIX_Xc.}
+
+\item{VECTOR_Xc_STANDARD_DEVIATIONS}{numeric vector of estimates of
+standard deviations of each column of MATRIX_Xc. Values are calculated via
+the function \code{colSds} from the R-package \code{matrixStats}.}
+
 \item{VECTOR_WEIGHTS_FEATURESc}{numeric vector of weights for the vectors
 of fixed and random effects \eqn{[b^T, u^T]^T}. The entries may be permuted
 corresponding to their group assignments.}
+
+\item{VECTOR_WEIGHTS_GROUPSc}{numeric vector of pre-calculated weights for
+each group.}
+
+\item{VECTOR_FULL_COLUMN_RANK}{Boolean vector, which harbors the information
+of whether or not the group-wise parts of the filtered matrix Z, i.e.,
+\eqn{Z^{(l)}} for each group l, have full column rank.}
 
 \item{VECTOR_GROUPS}{integer vector specifying which effect (fixed and
 random) belongs to which group.}
@@ -81,6 +172,10 @@ they will be returned according to the order of the user's input.}
 
 \item{VECTOR_INDEX_PERMUTATION}{integer vector that contains information
 about the original order of the user's input.}
+
+\item{VECTOR_INDEX_EXCLUDE}{integer vector, which contains the indices of
+every column that was filtered due to low standard deviation. This vector
+only has an effect, if \code{standardize = TRUE} is used.}
 
 \item{EPSILON_CONVERGENCE}{value for relative accuracy of the solution to
 stop the algorithm for the current value of \eqn{\lambda}. The algorithm
@@ -103,12 +198,23 @@ of \eqn{\lambda} for the grid search, i.e. \eqn{\lambda_{min} = \xi *
 \lambda_{max}}. Has to satisfy: \eqn{0 < \xi \le 1}. If \code{xi=1}, only a
 single solution for \eqn{\lambda = \lambda_{max}} is calculated.}
 
+\item{DELTA}{numeric value, which is squared and added to the main diagonal
+of \eqn{Z^{(l)T} Z^{(l)}} for group l, if this matrix is not invertible.}
+
 \item{NUMBER_INTERVALS}{number of lambdas for the grid search between
 \eqn{\lambda_{max}} and \eqn{\xi * \lambda_{max}}. Loops are performed on a
 logarithmic grid.}
 
 \item{NUMBER_FIXED_EFFECTS}{non-negative integer to determine the number of
 fixed effects present in the mixed model.}
+
+\item{NUMBER_VARIABLES}{non-negative integer which corresponds to the sum
+of all columns of the initial model matrices X and Z.}
+
+\item{INTERNAL_STANDARDIZATION}{if \code{TRUE}, the input vector y is
+centered, and each column of the input matrices X and Z is centered and
+scaled with an internal process. Additionally, a filter is applied to X and
+Z, which filters columns with standard deviation less than \code{1.e-7}.}
 
 \item{TRACE_PROGRESS}{if \code{TRUE}, a message will occur on the screen
 after each finished loop of the \eqn{\lambda} grid. This is particularly
@@ -117,10 +223,14 @@ useful for larger data sets.}
 \item{ALPHA}{mixing parameter of the penalty terms. Satisfies: \eqn{0 <
 \alpha < 1}. The penalty term looks as follows: \deqn{\alpha *
 "lasso penalty" + (1-\alpha) * "group lasso penalty".}}
+
+\item{STEP_SIZE}{numeric value which represents the size of the step between
+consecutive iterations.}
 }
 \value{
 A list of estimates and parameters relevant for the computation:
 \describe{
+\item{intercept}{estimate for the intercept, if present in the model.}
 \item{fixed_effects}{estimates for the fixed effects b, if present in the
 model. Each row corresponds to a particular value of \eqn{\lambda}.}
 \item{random_effects}{predictions for the random effects u. Each row
@@ -148,6 +258,9 @@ The penalty of the sparse-group lasso (without additional weights for
 features) is then: \deqn{\alpha \lambda ||u||_1 + (1 - \alpha) \lambda
 \sum_l \omega^G_l ||u^{(l)}||_2.} If \eqn{\alpha = 1}, this leads to the
 lasso. If \eqn{\alpha = 0}, this leads to the group lasso.
+Furthermore, if instead of applying the \eqn{l_2}-norm on \eqn{u^{(l)}} but
+on the fitted values \eqn{Z^{(l)} u^{(l)}} two more algorithms may be
+called: either the fitted group lasso or the fitted sparse-group lasso.
 }
 \keyword{models}
 \keyword{regression}

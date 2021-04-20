@@ -6,7 +6,8 @@
 \title{Mixed model fitting with lasso, group lasso, or sparse-group lasso
 regularization}
 \usage{
-seagull(y, X, Z, weights_u, groups, alpha, rel_acc, max_lambda, xi,
+seagull(y, X, Z, weights_u, groups, alpha, standardize,
+        l2_fitted_values, step_size, delta, rel_acc, max_lambda, xi,
         loops_lambda, max_iter, gamma_bls, trace_progress)
 }
 \arguments{
@@ -33,6 +34,29 @@ variables automatically. Float or double input values will be truncated.}
 '"lasso penalty" + (1-\alpha) * "group lasso penalty".} If \code{alpha=1},
 the lasso is called. If \code{alpha=0}, the group lasso is called. Default
 value is \code{0.9}.}
+
+\item{standardize}{if \code{TRUE}, the input vector y will be centered, and
+each column of the input matrices X and Z will be centered and scaled.
+Additionally, a filter will be applied to X and Z, which filters columns with
+standard deviation less than \code{1.e-7}. Results will be transformed back
+and presented on the original scale of the problem. Default value is
+\code{FALSE}.}
+
+\item{l2_fitted_values}{if \code{TRUE}, the l2-penalty is not applied on the
+clustered vector u, but on the clustered vector of fitted values Z*u. Default
+value is \code{FALSE}.}
+
+\item{step_size}{is a parameter, which is only used if
+\code{l2_fitted_values = TRUE} and \eqn{0 < \alpha < 1}. As the fitted
+sparse-group lasso is solved via proximal-averaged gradient descent the
+exact impact of backtracking line search has not yet been investigated.
+Therefore, a fixed value for the step size between consecutive iterations
+needs to be provided. Default value is \code{0.1}.}
+
+\item{delta}{is a ridge-type parameter, which is only used if
+\code{l2_fitted_values = TRUE}. If for group l, the matrix t(Z^(l)) \%*\% Z^(l)
+is not invertible, delta is first squared and then added to its main diagonal
+. Default value is \code{1.0}.}
 
 \item{rel_acc}{(optional) relative accuracy of the solution to stop the
 algorithm for the current value of \eqn{\lambda}. The algorithm stops after
@@ -67,11 +91,13 @@ size during backtracking line search. Has to satisfy: \eqn{0 < \gamma_{bls}
 
 \item{trace_progress}{(optional) if \code{TRUE}, a message will occur on the
 screen after each finished loop of the \eqn{\lambda} grid. This is
-particularly useful for larger data sets.}
+particularly useful for larger data sets. Default value is \code{FALSE}.}
 }
 \value{
 A list of estimates and parameters relevant for the computation:
 \describe{
+\item{intercept}{estimate for the general intercept. Only present, if the
+parameter \code{standardize} was manually set to \code{TRUE}.}
 \item{fixed_effects}{estimates for the fixed effects b, if present in the
 model. Each row corresponds to a particular value of \eqn{\lambda}.}
 \item{random_effects}{predictions for the random effects u. Each row
@@ -88,14 +114,16 @@ comparison and repetition: \code{alpha} (only for the sparse-group lasso),
 \code{max_iter}, \code{gamma_bls}, \code{xi}, and \code{loops_lambda}.
 }
 \description{
-Fit a mixed model with lasso, group lasso, or sparse-group lasso
-via proximal gradient descent. As this is an iterative algorithm, the step
-size for each iteration is determined via backtracking line search. A grid
-search for the regularization parameter \eqn{\lambda} is performed using warm
-starts. Depending on the input parameter \code{alpha} this function
-subsequently calls one of the three implemented
-\code{\link[seagull]{lasso_variants}}. None of the input variables will be
-centered or standardized throughout any of the calculations of this package.
+Fit a mixed model with lasso, (fitted) group lasso, or (fitted)
+sparse-group lasso via proximal gradient descent. As this is an iterative
+algorithm, the step size for each iteration is determined via backtracking
+line search. The only exception to this is the fitted sparse-group lasso. Its
+step size needs determination prior to the call. A grid search for the
+regularization parameter \eqn{\lambda} is performed using warm starts.
+Depending on the input parameters \code{alpha} and \code{l2_fitted_values}
+this function subsequently calls one of the five implemented
+\code{\link[seagull]{lasso_variants}}. Input variables will be standardized
+if demanded by the user.
 }
 \details{
 The underlying mixed model has the form: \deqn{y = X b + Z u +
@@ -115,6 +143,10 @@ The group weights \eqn{\omega^G_l} are implemented as follows:
 \eqn{\omega^G_l = \sum_{j, j \in G} \sqrt{\omega^F_{j}}}. So, in the case
 that the weights for features in a particular group are all equal to one,
 this term collapses to the square root of the group size.
+
+Furthermore, if instead of applying the \eqn{l_2}-norm on \eqn{u^{(l)}} but
+on the fitted values \eqn{Z^{(l)} u^{(l)}} two more algorithms may be called:
+either the fitted group lasso or the fitted sparse-group lasso.
 
 In addition, the above penalty can be formally rewritten by including the
 fixed effects and assigning weights equal to zero to all these features. This

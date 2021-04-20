@@ -11,7 +11,7 @@ using namespace arma;
 //' 
 //' @name lasso_variants
 //' 
-//' @aliases group_lasso
+//' @aliases fitted_group_lasso
 //' 
 //' @param VECTOR_Yc numeric vector of observations.
 //' 
@@ -31,6 +31,13 @@ using namespace arma;
 //' @param VECTOR_WEIGHTS_FEATURESc numeric vector of weights for the vectors
 //' of fixed and random effects \eqn{[b^T, u^T]^T}. The entries may be permuted
 //' corresponding to their group assignments.
+//' 
+//' @param VECTOR_WEIGHTS_GROUPSc numeric vector of pre-calculated weights for
+//' each group.
+//' 
+//' @param VECTOR_FULL_COLUMN_RANK Boolean vector, which harbors the information
+//' of whether or not the group-wise parts of the filtered matrix Z, i.e.,
+//' \eqn{Z^{(l)}} for each group l, have full column rank.
 //' 
 //' @param VECTOR_GROUPS integer vector specifying which effect (fixed and
 //' random) belongs to which group.
@@ -68,6 +75,9 @@ using namespace arma;
 //' \lambda_{max}}. Has to satisfy: \eqn{0 < \xi \le 1}. If \code{xi=1}, only a
 //' single solution for \eqn{\lambda = \lambda_{max}} is calculated.
 //' 
+//' @param DELTA numeric value, which is squared and added to the main diagonal
+//' of \eqn{Z^{(l)T} Z^{(l)}} for group l, if this matrix is not invertible.
+//' 
 //' @param NUMBER_INTERVALS number of lambdas for the grid search between
 //' \eqn{\lambda_{max}} and \eqn{\xi * \lambda_{max}}. Loops are performed on a 
 //' logarithmic grid.
@@ -87,14 +97,17 @@ using namespace arma;
 //' after each finished loop of the \eqn{\lambda} grid. This is particularly
 //' useful for larger data sets.
 //' 
+//' @export
 // [[Rcpp::export]]
-List seagull_group_lasso(
+List seagull_fitted_group_lasso(
   NumericVector VECTOR_Yc,
   double Y_MEAN,
   NumericMatrix MATRIX_Xc,
   NumericVector VECTOR_Xc_MEANS,
   NumericVector VECTOR_Xc_STANDARD_DEVIATIONS,
   NumericVector VECTOR_WEIGHTS_FEATURESc,
+  NumericVector VECTOR_WEIGHTS_GROUPSc,
+  LogicalVector VECTOR_FULL_COLUMN_RANK,
   IntegerVector VECTOR_GROUPS,
   NumericVector VECTOR_BETAc,
   IntegerVector VECTOR_INDEX_PERMUTATION,
@@ -104,6 +117,7 @@ List seagull_group_lasso(
   double GAMMA,
   double LAMBDA_MAX,
   double PROPORTION_XI,
+  double DELTA,
   int NUMBER_INTERVALS,
   int NUMBER_FIXED_EFFECTS,
   int NUMBER_VARIABLES,
@@ -115,12 +129,14 @@ List seagull_group_lasso(
   /*********************************************************
    **     First initialization based on input variables:  **
    *********************************************************/
-  int n = VECTOR_Yc.size();
-  int p = VECTOR_WEIGHTS_FEATURESc.size();
+  int n             = VECTOR_Yc.size();
+  int p             = VECTOR_WEIGHTS_FEATURESc.size();
+  int NUMBER_GROUPS = max(VECTOR_GROUPS);
   colvec VECTOR_Y(VECTOR_Yc.begin(), n, false);
   colvec VECTOR_X_MEANS(VECTOR_Xc_MEANS.begin(), p, false);
   colvec VECTOR_X_STANDARD_DEVIATIONS(VECTOR_Xc_STANDARD_DEVIATIONS.begin(), p, false);
   colvec VECTOR_WEIGHTS_FEATURES(VECTOR_WEIGHTS_FEATURESc.begin(), p, false);
+  colvec VECTOR_WEIGHTS_GROUPS(VECTOR_WEIGHTS_GROUPSc.begin(), NUMBER_GROUPS, false);
   colvec VECTOR_BETA(VECTOR_BETAc.begin(), p, false);
   mat MATRIX_X(MATRIX_Xc.begin(), n, p, false);
   
@@ -132,7 +148,6 @@ List seagull_group_lasso(
   int index_i                 = 0;
   int index_j                 = 0;
   int index_interval          = 0;
-  int NUMBER_GROUPS           = max(VECTOR_GROUPS);
   int COUNTER_GROUP_SIZE      = 0;
   int COUNTER                 = 0;
   int INDEX_EXCLUDE           = 0;
@@ -141,7 +156,12 @@ List seagull_group_lasso(
   double TEMP1                = 0.0;
   double TEMP2                = 0.0;
   double TEMP3                = 0.0;
+  double TEMP4                = 0.0;
+  double TEMP5                = 0.0;
+  double THETA                = 0.0;
+  double THETA_NEW            = 0.0;
   double L2_NORM_VECTOR_TEMP1 = 0.0;
+  double L2_NORM_VECTOR_TEMP3 = 0.0;
   double SCALING              = 0.0;
   bool ACCURACY_REACHED       = false;
   bool CRITERION_FULFILLED    = false;
@@ -149,20 +169,24 @@ List seagull_group_lasso(
   IntegerVector VECTOR_INDEX_START (NUMBER_GROUPS);
   IntegerVector VECTOR_INDEX_END (NUMBER_GROUPS);
   IntegerVector VECTOR_GROUP_SIZES (NUMBER_GROUPS);
-  NumericVector VECTOR_WEIGHTS_GROUPSc (NUMBER_GROUPS);
   NumericVector VECTOR_BETA_NEWc (p);
+  NumericVector VECTOR_ETAc (p);
   NumericVector VECTOR_GRADIENTc (p);
   NumericVector VECTOR_X_TRANSP_Yc (p);
   NumericVector VECTOR_TEMP3c (n);
-  NumericVector VECTOR_TEMP4c (p);
+  NumericVector VECTOR_TEMP4c (n);
+  NumericVector VECTOR_TEMP5c (n);
+  NumericVector VECTOR_TEMP6c (p);
   NumericVector VECTOR_TEMP_GRADIENTc (n);
   
-  colvec VECTOR_WEIGHTS_GROUPS(VECTOR_WEIGHTS_GROUPSc.begin(), NUMBER_GROUPS, false);
   colvec VECTOR_BETA_NEW(VECTOR_BETA_NEWc.begin(), p, false);
+  colvec VECTOR_ETA(VECTOR_ETAc.begin(), p, false);
   colvec VECTOR_GRADIENT(VECTOR_GRADIENTc.begin(), p, false);
   colvec VECTOR_X_TRANSP_Y(VECTOR_X_TRANSP_Yc.begin(), p, false);
   colvec VECTOR_TEMP3(VECTOR_TEMP3c.begin(), n, false);
-  colvec VECTOR_TEMP4(VECTOR_TEMP4c.begin(), p, false);
+  colvec VECTOR_TEMP4(VECTOR_TEMP4c.begin(), n, false);
+  colvec VECTOR_TEMP5(VECTOR_TEMP5c.begin(), n, false);
+  colvec VECTOR_TEMP6(VECTOR_TEMP6c.begin(), p, false);
   colvec VECTOR_TEMP_GRADIENT(VECTOR_TEMP_GRADIENTc.begin(), n, false);
   
   //Additional output variables:
@@ -183,14 +207,12 @@ List seagull_group_lasso(
     COUNTER_GROUP_SIZE = 0;
     for (index_j = 0; index_j < p; index_j++) {
       if (VECTOR_GROUPS(index_j) == (index_i + 1)) {
-        COUNTER_GROUP_SIZE             = COUNTER_GROUP_SIZE + 1;
-        VECTOR_INDEX_START(index_i)    = index_j - COUNTER_GROUP_SIZE + 1;
-        VECTOR_INDEX_END(index_i)      = index_j;
-        VECTOR_GROUP_SIZES(index_i)    = COUNTER_GROUP_SIZE;
-        VECTOR_WEIGHTS_GROUPS(index_i) = VECTOR_WEIGHTS_GROUPS(index_i) + VECTOR_WEIGHTS_FEATURES(index_j);
+        COUNTER_GROUP_SIZE          = COUNTER_GROUP_SIZE + 1;
+        VECTOR_INDEX_START(index_i) = index_j - COUNTER_GROUP_SIZE + 1;
+        VECTOR_INDEX_END(index_i)   = index_j;
+        VECTOR_GROUP_SIZES(index_i) = COUNTER_GROUP_SIZE;
       }
     }
-    VECTOR_WEIGHTS_GROUPS(index_i) = sqrt_double(VECTOR_WEIGHTS_GROUPS(index_i));
   }
   
   
@@ -203,7 +225,9 @@ List seagull_group_lasso(
   for (index_interval = 0; index_interval < NUMBER_INTERVALS; index_interval++) {
     Rcpp::checkUserInterrupt();
     ACCURACY_REACHED = false;
-    COUNTER = 1;
+    COUNTER          = 1;
+    VECTOR_ETA       = VECTOR_BETA;
+    THETA            = 1.0;
     if (NUMBER_INTERVALS > 1) {
       LAMBDA = LAMBDA_MAX * exp((static_cast<double>(index_interval) / static_cast<double>(NUMBER_INTERVALS - 1)) * log(PROPORTION_XI));
     } else {
@@ -216,7 +240,17 @@ List seagull_group_lasso(
       VECTOR_GRADIENT      = MATRIX_X.t() * VECTOR_TEMP_GRADIENT;
       VECTOR_GRADIENT      = VECTOR_GRADIENT - VECTOR_X_TRANSP_Y;
       
-      //Scale gradient with n, i.e. (t(X)*X*beta - t(X)y)/n:
+      //Add delta^2 * beta^(i), if column rank of X^(i) is not full:
+      for (index_i = 0; index_i < NUMBER_GROUPS; index_i++) {
+        if (!VECTOR_FULL_COLUMN_RANK(index_i)) {
+          for (index_j = 0; index_j < VECTOR_GROUP_SIZES(index_i); index_j++) {
+          	VECTOR_GRADIENT(VECTOR_INDEX_START(index_i) + index_j) = VECTOR_GRADIENT(VECTOR_INDEX_START(index_i) + index_j) + 
+          	  (DELTA * DELTA * VECTOR_BETA(VECTOR_INDEX_START(index_i) + index_j));
+          }
+        }
+      }
+      
+      //Scale gradient with n:
       for (index_j = 0; index_j < p; index_j++) {
         VECTOR_GRADIENT(index_j) = VECTOR_GRADIENT(index_j) / static_cast<double>(n);
       }
@@ -235,21 +269,53 @@ List seagull_group_lasso(
           NumericVector VECTOR_TEMP2c (VECTOR_GROUP_SIZES(index_i));
           colvec VECTOR_TEMP2(VECTOR_TEMP2c.begin(), VECTOR_GROUP_SIZES(index_i), false);
           
+          //Create for group i the matrix t(X^(i)) * X^(i):
+          mat MATRIX_X_GROUP_i (n, VECTOR_GROUP_SIZES(index_i));
+          mat MATRIX_XTX_GROUP_INVERSE (VECTOR_GROUP_SIZES(index_i), VECTOR_GROUP_SIZES(index_i));
+          MATRIX_X_GROUP_i         = MATRIX_X.submat(0, VECTOR_INDEX_START(index_i), n-1, VECTOR_INDEX_END(index_i));
+          MATRIX_XTX_GROUP_INVERSE = MATRIX_X_GROUP_i.t() * MATRIX_X_GROUP_i;
+          
+          //Add delta^2 to the main diagonal of t(X^(i)) * X^(i), if column rank of X^(i) is not full:
+  	      if (!VECTOR_FULL_COLUMN_RANK(index_i)) {
+            for(index_j = 0; index_j < VECTOR_GROUP_SIZES(index_i); index_j++) {
+              MATRIX_XTX_GROUP_INVERSE(index_j, index_j) = MATRIX_XTX_GROUP_INVERSE(index_j, index_j) + DELTA * DELTA;
+            }
+          }
+          
+          //Invert the current matrix:
+          MATRIX_XTX_GROUP_INVERSE = inv(MATRIX_XTX_GROUP_INVERSE);
+          
+          //Calculate "matrix_above" * gradient^(i):
+          colvec VECTOR_GRADIENT_GROUP_i(VECTOR_GROUP_SIZES(index_i));
+          VECTOR_GRADIENT_GROUP_i = VECTOR_GRADIENT.subvec(VECTOR_INDEX_START(index_i), VECTOR_INDEX_END(index_i));
+          VECTOR_GRADIENT_GROUP_i = MATRIX_XTX_GROUP_INVERSE * VECTOR_GRADIENT_GROUP_i;
+          
+          //Calculate beta^(i) - t * "vector_above":
           for (index_j = 0; index_j < VECTOR_GROUP_SIZES(index_i); index_j++) {
             VECTOR_TEMP1(index_j) = VECTOR_BETA(VECTOR_INDEX_START(index_i) + index_j) - 
-              STEP_SIZE * VECTOR_GRADIENT(VECTOR_INDEX_START(index_i) + index_j);
+              STEP_SIZE * VECTOR_GRADIENT_GROUP_i(index_j);
           }
-          TEMP1 = STEP_SIZE * LAMBDA * VECTOR_WEIGHTS_GROUPS(index_i);
+          TEMP1        = STEP_SIZE * LAMBDA * VECTOR_WEIGHTS_GROUPS(index_i);
+          VECTOR_TEMP3 = MATRIX_X_GROUP_i * VECTOR_TEMP1;
           
           //Soft-scaling in groups to obtain beta_new:
           L2_NORM_VECTOR_TEMP1 = 0.0;
-          for (index_j = 0; index_j < VECTOR_GROUP_SIZES(index_i); index_j++) {
-            L2_NORM_VECTOR_TEMP1 = L2_NORM_VECTOR_TEMP1 + VECTOR_TEMP1(index_j) * VECTOR_TEMP1(index_j);
+          L2_NORM_VECTOR_TEMP3 = 0.0;
+          for (index_j = 0; index_j < n; index_j++) {
+            L2_NORM_VECTOR_TEMP3 = L2_NORM_VECTOR_TEMP3 + VECTOR_TEMP3(index_j) * VECTOR_TEMP3(index_j);
           }
-          L2_NORM_VECTOR_TEMP1 = sqrt_double(L2_NORM_VECTOR_TEMP1);
           
-          if (L2_NORM_VECTOR_TEMP1 > TEMP1) {
-            SCALING = 1.0 - TEMP1 / L2_NORM_VECTOR_TEMP1;
+          //Calculate l2-norm of VECTOR_TEMP3 and add to the current l2-norm, if column rank of X^(i) is not full:
+          if (!VECTOR_FULL_COLUMN_RANK(index_i)) {
+            for (index_j = 0; index_j < VECTOR_GROUP_SIZES(index_i); index_j++) {
+              L2_NORM_VECTOR_TEMP1 = L2_NORM_VECTOR_TEMP1 + VECTOR_TEMP1(index_j) * VECTOR_TEMP1(index_j);
+            }
+            L2_NORM_VECTOR_TEMP3 = L2_NORM_VECTOR_TEMP3 + DELTA * DELTA * L2_NORM_VECTOR_TEMP1;
+          }
+          L2_NORM_VECTOR_TEMP3 = sqrt_double(L2_NORM_VECTOR_TEMP3);
+          
+          if (L2_NORM_VECTOR_TEMP3 > TEMP1) {
+            SCALING = 1.0 - TEMP1 / L2_NORM_VECTOR_TEMP3;
             for (index_j = 0; index_j < VECTOR_GROUP_SIZES(index_i); index_j++) {
               VECTOR_BETA_NEW(VECTOR_INDEX_START(index_i) + index_j) = SCALING * VECTOR_TEMP1(index_j);
             }
@@ -260,33 +326,46 @@ List seagull_group_lasso(
           }
         }
         
-        //beta-beta_new:
-        VECTOR_TEMP4 = VECTOR_BETA - VECTOR_BETA_NEW;
+        //Reset:
         TEMP1 = 0.0;
         TEMP2 = 0.0;
         TEMP3 = 0.0;
+        TEMP4 = 0.0;
+        TEMP5 = 0.0;
         
-        //loss_function(beta):
-        VECTOR_TEMP3 = VECTOR_Y - MATRIX_X * VECTOR_BETA;
-        for (index_i = 0; index_i < n; index_i++) {
-          TEMP1 = TEMP1 + VECTOR_TEMP3(index_i) * VECTOR_TEMP3(index_i);
-        }
-        TEMP1 = (0.5 * TEMP1) / static_cast<double>(n);
+        //(X * beta^(m-1)), (X * beta^(m)), (X * beta^(m-1) - X * beta^(m)), and (beta^(m-1) - beta^(m)):
+        VECTOR_TEMP3 = MATRIX_X * VECTOR_BETA;
+        VECTOR_TEMP4 = MATRIX_X * VECTOR_BETA_NEW;
+        VECTOR_TEMP5 = VECTOR_TEMP3 - VECTOR_TEMP4;
+        VECTOR_TEMP6 = VECTOR_BETA - VECTOR_BETA_NEW;
         
-        //t(gradient)*(beta-beta_new) and l2_norm_squared(beta-beta_new):
-        for (index_j = 0; index_j < p; index_j++) {
-          TEMP2 = TEMP2 + VECTOR_GRADIENT(index_j) * VECTOR_TEMP4(index_j);
-          TEMP3 = TEMP3 + VECTOR_TEMP4(index_j) * VECTOR_TEMP4(index_j);
-        }
-        TEMP1 = TEMP1 - TEMP2 + (0.5 * TEMP3 / STEP_SIZE);
+        //(y - X * beta^(m-1)) and (y - X * beta^(m)):
+        VECTOR_TEMP3 = VECTOR_Y - VECTOR_TEMP3;
+        VECTOR_TEMP4 = VECTOR_Y - VECTOR_TEMP4;
         
-        //loss_function(beta_new):
-        TEMP2 = 0.0;
-        VECTOR_TEMP3 = VECTOR_Y - MATRIX_X * VECTOR_BETA_NEW;
-        for (index_i = 0; index_i < n; index_i++) {
-          TEMP2 = TEMP2 + VECTOR_TEMP3(index_i) * VECTOR_TEMP3(index_i);
+        //Squared l2-norm of (y - X * beta^(m-1)), (y - X * beta^(m)), (beta^(m-1) - beta^(m)),
+        //and scalar product of (y - X * beta^(m-1)) and (X * beta^(m-1) - X * beta^(m)):
+        TEMP1 = as_scalar(VECTOR_TEMP3.t() * VECTOR_TEMP3);
+        TEMP2 = as_scalar(VECTOR_TEMP4.t() * VECTOR_TEMP4);
+        TEMP3 = as_scalar(VECTOR_TEMP6.t() * VECTOR_TEMP6);
+        TEMP4 = as_scalar(VECTOR_TEMP3.t() * VECTOR_TEMP5);
+        
+        //Sum_i delta^2 * || beta_i^(m-1) - beta_i^(m) ||_2^2:
+        for (index_i = 0; index_i < NUMBER_GROUPS; index_i++) {
+          if (!VECTOR_FULL_COLUMN_RANK(index_i)) {
+            for (index_j = 0; index_j < VECTOR_GROUP_SIZES(index_i); index_j++) {
+          	  TEMP5 = TEMP5 + DELTA * DELTA * VECTOR_TEMP6(VECTOR_INDEX_START(index_i) + index_j) * VECTOR_TEMP6(VECTOR_INDEX_START(index_i) + index_j);
+            }
+          }
         }
-        TEMP2 = (0.5 * TEMP2) / static_cast<double>(n);
+        
+        //Scale the temporary variables properly:
+        TEMP3 = static_cast<double>(n) * TEMP3 / STEP_SIZE;
+        TEMP4 = 2.0 * TEMP4;
+        
+        //Full right-hand side for backtracking:
+        //TEMP1 = TEMP1 + TEMP3 + TEMP4 - TEMP5;
+        TEMP1 = TEMP1 + TEMP3 + TEMP4;
         
         //Decrease time step t by a factor of gamma, if necessary:
         if (TEMP2 > TEMP1) {
@@ -296,17 +375,15 @@ List seagull_group_lasso(
         } else {
           //l_inf_norm(beta-beta_new):
           for (index_j = 0; index_j < p; index_j++) {
-            if (VECTOR_TEMP4(index_j) < 0.0) {
-              VECTOR_TEMP4(index_j) = -1.0 * VECTOR_TEMP4(index_j);
+            if (VECTOR_TEMP6(index_j) < 0.0) {
+              VECTOR_TEMP6(index_j) = -1.0 * VECTOR_TEMP6(index_j);
             }
           }
-          TEMP1 = max(VECTOR_TEMP4);
+          TEMP1 = max(VECTOR_TEMP6);
           TEMP2 = 0.0;
           
-          //l2_norm(beta)*epsilon_conv:
-          for (index_j = 0; index_j < p; index_j++) {
-            TEMP2 = TEMP2 + VECTOR_BETA(index_j) * VECTOR_BETA(index_j);
-          }
+          //l2_norm(beta) * epsilon_conv:
+          TEMP2 = as_scalar(VECTOR_BETA.t() * VECTOR_BETA);
           TEMP2 = sqrt_double(TEMP2) * EPSILON_CONVERGENCE;
           
           if (TEMP1 <= TEMP2) {
@@ -314,7 +391,13 @@ List seagull_group_lasso(
           }
           
           //Update: beta=beta_new:
-          VECTOR_BETA = VECTOR_BETA_NEW;
+          THETA_NEW = 0.5 * (1.0 + sqrt(1.0 + 4.0 * THETA * THETA));
+          TEMP1     = (THETA - 1.0) / THETA_NEW;
+          THETA     = THETA_NEW;
+          
+          VECTOR_BETA = VECTOR_BETA_NEW + TEMP1 * (VECTOR_BETA_NEW - VECTOR_ETA);
+          VECTOR_ETA  = VECTOR_BETA_NEW;
+          
           CRITERION_FULFILLED = true;
         }
       }

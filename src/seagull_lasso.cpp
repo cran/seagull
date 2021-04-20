@@ -7,7 +7,7 @@ inline static double sqrt_double(double x) { return ::sqrt(x); }
 using namespace Rcpp;
 using namespace arma;
 
-//' Lasso, group lasso, and sparse-group lasso
+//' Lasso, (fitted) group lasso, and (fitted) sparse-group lasso
 //' 
 //' @name lasso_variants
 //' 
@@ -15,9 +15,18 @@ using namespace arma;
 //' 
 //' @param VECTOR_Yc numeric vector of observations.
 //' 
+//' @param Y_MEAN arithmetic mean of VECTOR_Yc.
+//' 
 //' @param MATRIX_Xc numeric design matrix relating y to fixed and random
 //' effects \eqn{[X Z]}. The columns may be permuted corresponding to their
 //' group assignments.
+//' 
+//' @param VECTOR_Xc_MEANS numeric vector of arithmetic means of each column
+//' of MATRIX_Xc.
+//' 
+//' @param VECTOR_Xc_STANDARD_DEVIATIONS numeric vector of estimates of
+//' standard deviations of each column of MATRIX_Xc. Values are calculated via
+//' the function \code{colSds} from the R-package \code{matrixStats}.
 //' 
 //' @param VECTOR_WEIGHTS_FEATURESc numeric vector of weights for the vectors
 //' of fixed and random effects \eqn{[b^T, u^T]^T}. The entries may be permuted
@@ -28,8 +37,12 @@ using namespace arma;
 //' effects). During the computation the entries may be in permuted order. But
 //' they will be returned according to the order of the user's input.
 //' 
+//' @param VECTOR_INDEX_EXCLUDE integer vector, which contains the indices of
+//' every column that was filtered due to low standard deviation. This vector
+//' only has an effect, if \code{standardize = TRUE} is used.
+//' 
 //' @param EPSILON_CONVERGENCE value for relative accuracy of the solution to
-//' stop the algortihm for the current value of \eqn{\lambda}. The algorithm
+//' stop the algorithm for the current value of \eqn{\lambda}. The algorithm
 //' stops after iteration m, if: \deqn{||sol^{(m)} - sol^{(m-1)}||_\infty <
 //' \epsilon_c * ||sol1{(m-1)}||_2.}
 //' 
@@ -56,16 +69,28 @@ using namespace arma;
 //' @param NUMBER_FIXED_EFFECTS non-negative integer to determine the number of
 //' fixed effects present in the mixed model.
 //' 
-//' @param TRACE_PROGRESS if \code{TRUE}, a messsage will occur on the screen
+//' @param NUMBER_VARIABLES non-negative integer which corresponds to the sum
+//' of all columns of the initial model matrices X and Z.
+//' 
+//' @param INTERNAL_STANDARDIZATION if \code{TRUE}, the input vector y is
+//' centered, and each column of the input matrices X and Z is centered and
+//' scaled with an internal process. Additionally, a filter is applied to X and
+//' Z, which filters columns with standard deviation less than \code{1.e-7}.
+//' 
+//' @param TRACE_PROGRESS if \code{TRUE}, a message will occur on the screen
 //' after each finished loop of the \eqn{\lambda} grid. This is particularly
 //' useful for larger data sets.
 //' 
 // [[Rcpp::export]]
 List seagull_lasso(
   NumericVector VECTOR_Yc,
+  double Y_MEAN,
   NumericMatrix MATRIX_Xc,
+  NumericVector VECTOR_Xc_MEANS,
+  NumericVector VECTOR_Xc_STANDARD_DEVIATIONS,
   NumericVector VECTOR_WEIGHTS_FEATURESc,
   NumericVector VECTOR_BETAc,
+  IntegerVector VECTOR_INDEX_EXCLUDE,
   double EPSILON_CONVERGENCE,
   int ITERATION_MAX,
   double GAMMA,
@@ -73,6 +98,8 @@ List seagull_lasso(
   double PROPORTION_XI,
   int NUMBER_INTERVALS,
   int NUMBER_FIXED_EFFECTS,
+  int NUMBER_VARIABLES,
+  bool INTERNAL_STANDARDIZATION,
   bool TRACE_PROGRESS
   ) {
   
@@ -83,6 +110,8 @@ List seagull_lasso(
   int n = VECTOR_Yc.size();
   int p = VECTOR_WEIGHTS_FEATURESc.size();
   colvec VECTOR_Y(VECTOR_Yc.begin(), n, false);
+  colvec VECTOR_X_MEANS(VECTOR_Xc_MEANS.begin(), p, false);
+  colvec VECTOR_X_STANDARD_DEVIATIONS(VECTOR_Xc_STANDARD_DEVIATIONS.begin(), p, false);
   colvec VECTOR_WEIGHTS_FEATURES(VECTOR_WEIGHTS_FEATURESc.begin(), p, false);
   colvec VECTOR_BETA(VECTOR_BETAc.begin(), p, false);
   mat MATRIX_X(MATRIX_Xc.begin(), n, p, false);
@@ -96,8 +125,9 @@ List seagull_lasso(
   int index_j              = 0;
   int index_interval       = 0;
   int COUNTER              = 0;
+  int INDEX_EXCLUDE        = 0;
   double LAMBDA            = 0.0;
-  double TIME_STEP_T       = 0.0;
+  double STEP_SIZE         = 0.0;
   double TEMP1             = 0.0;
   double TEMP2             = 0.0;
   double TEMP3             = 0.0;
@@ -123,7 +153,8 @@ List seagull_lasso(
   //Additional output variables:
   IntegerVector VECTOR_ITERATIONS (NUMBER_INTERVALS);
   NumericVector VECTOR_LAMBDA (NUMBER_INTERVALS);
-  NumericMatrix MATRIX_SOLUTION (NUMBER_INTERVALS, p);
+  NumericVector VECTOR_INTERCEPT (NUMBER_INTERVALS);
+  NumericMatrix MATRIX_SOLUTION (NUMBER_INTERVALS, NUMBER_VARIABLES);
   
   
   /*********************************************************
@@ -143,7 +174,7 @@ List seagull_lasso(
     }
     
     while ((!ACCURACY_REACHED) && (COUNTER <= ITERATION_MAX)) {
-      //Calculate unscaled gradient t(X)*X*beta - t(X):
+      //Calculate unscaled gradient t(X)*X*beta - t(X)*y:
       VECTOR_TEMP_GRADIENT = MATRIX_X * VECTOR_BETA;
       VECTOR_GRADIENT      = MATRIX_X.t() * VECTOR_TEMP_GRADIENT;
       VECTOR_GRADIENT      = VECTOR_GRADIENT - VECTOR_X_TRANSP_Y;
@@ -153,7 +184,7 @@ List seagull_lasso(
         VECTOR_GRADIENT(index_j) = VECTOR_GRADIENT(index_j) / static_cast<double>(n);
       }
       CRITERION_FULFILLED = false;
-      TIME_STEP_T = 1.0;
+      STEP_SIZE = 1.0;
       
       
       /*****************************************************
@@ -162,8 +193,8 @@ List seagull_lasso(
       while (!CRITERION_FULFILLED) {
         //Preparation for soft-thresholding:
         for (index_j = 0; index_j < p; index_j++) {
-          VECTOR_TEMP1(index_j) = VECTOR_BETA(index_j) - TIME_STEP_T * VECTOR_GRADIENT(index_j);
-          VECTOR_TEMP2(index_j) = LAMBDA * TIME_STEP_T * VECTOR_WEIGHTS_FEATURES(index_j);
+          VECTOR_TEMP1(index_j) = VECTOR_BETA(index_j) - STEP_SIZE * VECTOR_GRADIENT(index_j);
+          VECTOR_TEMP2(index_j) = LAMBDA * STEP_SIZE * VECTOR_WEIGHTS_FEATURES(index_j);
         }
         
         //Soft-thresholding to obtain beta_new:
@@ -195,7 +226,7 @@ List seagull_lasso(
           TEMP2 = TEMP2 + VECTOR_GRADIENT(index_j) * VECTOR_TEMP1(index_j);
           TEMP3 = TEMP3 + VECTOR_TEMP1(index_j) * VECTOR_TEMP1(index_j);
         }
-        TEMP1 = TEMP1 - TEMP2 + (0.5 * TEMP3 / TIME_STEP_T);
+        TEMP1 = TEMP1 - TEMP2 + (0.5 * TEMP3 / STEP_SIZE);
         
         //loss_function(beta_new):
         TEMP2 = 0.0;
@@ -207,7 +238,7 @@ List seagull_lasso(
         
         //Decrease time step t by a factor of gamma, if necessary:
         if (TEMP2 > TEMP1) {
-          TIME_STEP_T = TIME_STEP_T * GAMMA;
+          STEP_SIZE = STEP_SIZE * GAMMA;
           
         //Check for convergence, if time step size is alright:
         } else {
@@ -239,53 +270,107 @@ List seagull_lasso(
       COUNTER = COUNTER + 1;
     }
     if (TRACE_PROGRESS) {
-      Rcout << "Loop: " << index_interval + 1 << " of " << NUMBER_INTERVALS << " finished." << std::endl;
+      Rcout << "Loop " << index_interval + 1 << " of " << NUMBER_INTERVALS << " finished." << std::endl;
     }
     
     //Store solution as single row in a matrix:
-    for (index_j = 0; index_j < p; index_j++) {
-      MATRIX_SOLUTION(index_interval, index_j) = VECTOR_BETA(index_j);
+    if (VECTOR_INDEX_EXCLUDE(0) == -1) {
+      for (index_j = 0; index_j < NUMBER_VARIABLES; index_j++) {
+        MATRIX_SOLUTION(index_interval, index_j) = VECTOR_BETA(index_j) / VECTOR_X_STANDARD_DEVIATIONS(index_j);
+      }
+    } else {
+    	INDEX_EXCLUDE = 0;
+    	for (index_j = 0; index_j < NUMBER_VARIABLES; index_j++) {
+    	  if ((INDEX_EXCLUDE < VECTOR_INDEX_EXCLUDE.size()) && (index_j == VECTOR_INDEX_EXCLUDE(INDEX_EXCLUDE) - 1)) {
+    	  	MATRIX_SOLUTION(index_interval, index_j) = 0.0;
+    	  	INDEX_EXCLUDE = INDEX_EXCLUDE + 1;
+    	  } else {
+    	  	MATRIX_SOLUTION(index_interval, index_j) = VECTOR_BETA(index_j - INDEX_EXCLUDE) / VECTOR_X_STANDARD_DEVIATIONS(index_j - INDEX_EXCLUDE);
+    	  }
+      }
     }
     
     //Store information about iterations and lambda in a vector:
     VECTOR_ITERATIONS(index_interval) = COUNTER - 1;
     VECTOR_LAMBDA(index_interval) = LAMBDA;
+    
+    VECTOR_INTERCEPT(index_interval) = Y_MEAN;
+    for (index_j = 0; index_j < p; index_j++) {
+    	VECTOR_INTERCEPT(index_interval) = VECTOR_INTERCEPT(index_interval) - VECTOR_X_MEANS(index_j) * VECTOR_BETA(index_j) / VECTOR_X_STANDARD_DEVIATIONS(index_j);
+    }
   }
   
   
   /*********************************************************
    **     Prepare results as list and return list:        **
    *********************************************************/
-  if (NUMBER_FIXED_EFFECTS == 0) {
-    return List::create(Named("random_effects") = MATRIX_SOLUTION,
-                        Named("lambda")         = VECTOR_LAMBDA,
-                        Named("iterations")     = VECTOR_ITERATIONS,
-                        Named("rel_acc")        = EPSILON_CONVERGENCE,
-                        Named("max_iter")       = ITERATION_MAX,
-                        Named("gamma_bls")      = GAMMA,
-                        Named("xi")             = PROPORTION_XI,
-                        Named("loops_lambda")   = NUMBER_INTERVALS);
-  } else {
-    NumericMatrix MATRIX_SOLUTION_FIXED (NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS);
-    NumericMatrix MATRIX_SOLUTION_RANDOM (NUMBER_INTERVALS, (p - NUMBER_FIXED_EFFECTS));
-    
-    for (index_i = 0; index_i < NUMBER_INTERVALS; index_i++) {
-      for (index_j = 0; index_j < NUMBER_FIXED_EFFECTS; index_j++) {
-        MATRIX_SOLUTION_FIXED(index_i, index_j) = MATRIX_SOLUTION(index_i, index_j);
+  if (INTERNAL_STANDARDIZATION) {
+    if (NUMBER_FIXED_EFFECTS == 0) {
+      return List::create(Named("intercept")      = VECTOR_INTERCEPT,
+    	                    Named("random_effects") = MATRIX_SOLUTION,
+                          Named("lambda")         = VECTOR_LAMBDA,
+                          Named("iterations")     = VECTOR_ITERATIONS,
+                          Named("rel_acc")        = EPSILON_CONVERGENCE,
+                          Named("max_iter")       = ITERATION_MAX,
+                          Named("gamma_bls")      = GAMMA,
+                          Named("xi")             = PROPORTION_XI,
+                          Named("loops_lambda")   = NUMBER_INTERVALS);
+    } else {
+      NumericMatrix MATRIX_SOLUTION_FIXED (NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS);
+      NumericMatrix MATRIX_SOLUTION_RANDOM (NUMBER_INTERVALS, (NUMBER_VARIABLES - NUMBER_FIXED_EFFECTS));
+      
+      for (index_i = 0; index_i < NUMBER_INTERVALS; index_i++) {
+        for (index_j = 0; index_j < NUMBER_FIXED_EFFECTS; index_j++) {
+          MATRIX_SOLUTION_FIXED(index_i, index_j) = MATRIX_SOLUTION(index_i, index_j);
+        }
+        for (index_j = 0; index_j < (NUMBER_VARIABLES - NUMBER_FIXED_EFFECTS); index_j++) {
+          MATRIX_SOLUTION_RANDOM(index_i, index_j) = MATRIX_SOLUTION(index_i, NUMBER_FIXED_EFFECTS + index_j);
+        }
       }
-      for (index_j = 0; index_j < (p - NUMBER_FIXED_EFFECTS); index_j++) {
-        MATRIX_SOLUTION_RANDOM(index_i, index_j) = MATRIX_SOLUTION(index_i, NUMBER_FIXED_EFFECTS + index_j);
-      }
+      
+      return List::create(Named("intercept")      = VECTOR_INTERCEPT,
+    	                    Named("fixed_effects")  = MATRIX_SOLUTION_FIXED,
+                          Named("random_effects") = MATRIX_SOLUTION_RANDOM,
+                          Named("lambda")         = VECTOR_LAMBDA,
+                          Named("iterations")     = VECTOR_ITERATIONS,
+                          Named("rel_acc")        = EPSILON_CONVERGENCE,
+                          Named("max_iter")       = ITERATION_MAX,
+                          Named("gamma_bls")      = GAMMA,
+                          Named("xi")             = PROPORTION_XI,
+                          Named("loops_lambda")   = NUMBER_INTERVALS);
     }
-    
-    return List::create(Named("fixed_effects")  = MATRIX_SOLUTION_FIXED,
-                        Named("random_effects") = MATRIX_SOLUTION_RANDOM,
-                        Named("lambda")         = VECTOR_LAMBDA,
-                        Named("iterations")     = VECTOR_ITERATIONS,
-                        Named("rel_acc")        = EPSILON_CONVERGENCE,
-                        Named("max_iter")       = ITERATION_MAX,
-                        Named("gamma_bls")      = GAMMA,
-                        Named("xi")             = PROPORTION_XI,
-                        Named("loops_lambda")   = NUMBER_INTERVALS);
+  } else {
+  	if (NUMBER_FIXED_EFFECTS == 0) {
+      return List::create(Named("random_effects") = MATRIX_SOLUTION,
+                          Named("lambda")         = VECTOR_LAMBDA,
+                          Named("iterations")     = VECTOR_ITERATIONS,
+                          Named("rel_acc")        = EPSILON_CONVERGENCE,
+                          Named("max_iter")       = ITERATION_MAX,
+                          Named("gamma_bls")      = GAMMA,
+                          Named("xi")             = PROPORTION_XI,
+                          Named("loops_lambda")   = NUMBER_INTERVALS);
+    } else {
+      NumericMatrix MATRIX_SOLUTION_FIXED (NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS);
+      NumericMatrix MATRIX_SOLUTION_RANDOM (NUMBER_INTERVALS, (NUMBER_VARIABLES - NUMBER_FIXED_EFFECTS));
+      
+      for (index_i = 0; index_i < NUMBER_INTERVALS; index_i++) {
+        for (index_j = 0; index_j < NUMBER_FIXED_EFFECTS; index_j++) {
+          MATRIX_SOLUTION_FIXED(index_i, index_j) = MATRIX_SOLUTION(index_i, index_j);
+        }
+        for (index_j = 0; index_j < (NUMBER_VARIABLES - NUMBER_FIXED_EFFECTS); index_j++) {
+          MATRIX_SOLUTION_RANDOM(index_i, index_j) = MATRIX_SOLUTION(index_i, NUMBER_FIXED_EFFECTS + index_j);
+        }
+      }
+      
+      return List::create(Named("fixed_effects")  = MATRIX_SOLUTION_FIXED,
+                          Named("random_effects") = MATRIX_SOLUTION_RANDOM,
+                          Named("lambda")         = VECTOR_LAMBDA,
+                          Named("iterations")     = VECTOR_ITERATIONS,
+                          Named("rel_acc")        = EPSILON_CONVERGENCE,
+                          Named("max_iter")       = ITERATION_MAX,
+                          Named("gamma_bls")      = GAMMA,
+                          Named("xi")             = PROPORTION_XI,
+                          Named("loops_lambda")   = NUMBER_INTERVALS);
+    }
   }
 }

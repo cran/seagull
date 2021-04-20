@@ -3,27 +3,31 @@
 
 # seagull
 
-This package provides regularization paths for the lasso, group lasso,
-and sparse-group lasso. The underlying mathematical model is a mixed
-model, i.e., a model with fixed and random effects. (Whereas it is
-actually optional to include any fixed effect.)
+This package provides regularization paths for the lasso, (fitted) group
+lasso, and (fitted) sparse-group lasso. The underlying mathematical
+model is a mixed model, i.e., a model with fixed and random effects.
+(Whereas it is actually optional to include any fixed effect.)
 
-The sparse-group lasso contains two penalty terms, which are combined
-via a mixing parameter `0 <= alpha <= 1`. Thus, if the parameter is set
-to either `1` or `0`, the resulting regularization operator is the lasso
-or the the group lasso, respectively.
+The (fitted) sparse-group lasso contains two penalty terms, which are
+combined via a mixing parameter `0 <= alpha <= 1`. Thus, if the
+parameter is set to either `1` or `0`, the resulting regularization
+operator is the lasso or the (fitted) group lasso, respectively.
 
 Key features:
 
-  - The lasso, group lasso, and sparse-group lasso are implemented via
-    *proximal gradient descent*
+-   The lasso, (fitted) group lasso, and sparse-group lasso are
+    implemented via *proximal gradient descent*.
 
-  - By default, a grid search for the penalty parameter `lambda` is
+-   The fitted sparse-group lasso (fitSGL) is implemented via
+    *proximal-averaged gradient descent*.
+
+-   By default, a grid search for the penalty parameter `lambda` is
     performed. *Warm starts* are implemented to effectively accelerate
     this procedure.
 
-  - The step size between consecutive iterations is automatically
-    determined via *backtracking line search*.
+-   The step size between consecutive iterations is automatically
+    determined via *backtracking line search* - except for the fitSGL,
+    which needs a fixed step size to be provided upon its call.
 
 # Installation
 
@@ -50,13 +54,15 @@ data("seagull_data")
 
 Furthermore, the following functions are available to the user:
 
-  - `seagull`
+-   `seagull`
 
-  - `lambda_max__lasso`
+-   `lambda_max__lasso`
 
-  - `lambda_max_group_lasso`
+-   `lambda_max_group_lasso`
 
-  - `lambda_max_sparse_group_lasso`
+-   `lambda_max_fitted_group_lasso`
+
+-   `lambda_max_sparse_group_lasso`
 
 # Example
 

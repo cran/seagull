@@ -20,15 +20,18 @@ knitr::opts_chunk$set(fig.width = 10, fig.height = 5,
 
 ## Introduction
 
-`seagull` is a package that fits a mixed model via sparse-group lasso (SGL)
-regularization. Limiting cases of this penalty are the lasso and the group
-lasso, which are also available in this package. Solutions are obtained via
-\textit{proximal gradient descent} on a grid of values for the regularization
-parameter $\lambda$. The grid search for this value is implemented using
-\textit{warm starts}. And since proximal gradient descent is an iterative
-procedure, the step size between consecutive iterations is a crucial parameter
-for convergence. To determine this step size, \textit{backtracking line search}
-is implemented.
+`seagull` is a package that fits a mixed model via (fitted) sparse-group lasso
+(SGL) regularization. Limiting cases of this penalty are the lasso and the
+(fitted) group lasso, which are also available in this package. Solutions are
+obtained via \textit{proximal gradient descent} on a grid of values for the
+regularization parameter $\lambda$. The grid search for this value is
+implemented using \textit{warm starts}. And since proximal gradient descent is
+an iterative procedure, the step size between consecutive iterations is a
+crucial parameter for convergence. In order to determine this step size,
+\textit{backtracking line search} is implemented. The only exception to this is
+fitted SGL, as it is implemented via proximal-averaged gradient descent. Thus,
+the step size for this particular algorithm needs determination prior to the
+call.
 
 We assume the following underlying mixed model:
 
@@ -50,7 +53,12 @@ $$
 Each $\omega$ represents a weight, either for a particular feature ($F$) or
 group ($G$). The \textit{mixing parameter} $\alpha$ may range between 0 and 1.
 And as can be seen in the above formula, $\alpha = 1$ leads to the lasso,
-whereas $\alpha = 0$ leads to the group lasso.
+whereas $\alpha = 0$ leads to the group lasso. However, the fitted variants of
+the group lasso and SGL differ by substituting the expression
+$\left\Vert u^{(l)} \right\Vert_2$ with
+$\left\Vert Z^{(l)} u^{(l)} \right\Vert_2$. Where $Z^{(l)}$ are the columns of
+$Z$ which correspond to $u^{(l)}$. The expression $Z^{(l)} u^{(l)}$ is also
+known as \textit{fitted values}.
 
 ## Example
 
@@ -146,8 +154,9 @@ to fixed effects $b$.
 * `Z` is a design matrix of dimension $n \times p$ which relates $y$ to random
 effects $u$.
 
-Note: The above mentioned variables will neither be centered nor standardized
-throughout any of the calculations of this package.
+Note: The above mentioned variables will only be centered or standardized prior
+to the calculations, if specified by the user via `standardize = TRUE`
+(see below).
 
 * `weights_u` is an optional vector of weights for the feature vector $u$. Its
 length is $p$. These weights correspond to $\omega^F$ in the above SGL problem.
@@ -171,6 +180,34 @@ entries of this vector don't need to be in any kind of order.
 
 * `alpha` is the optional mixing parameter for the SGL according to the above
 formula. Its default is ``r fit_sgl1$alpha``.
+
+* `standardize` is an optional parameter to specify whether the input data `y`,
+`X`, and `Z` should be standardized before the start of the algorithm. Here,
+standardization means column-wise centering and scaling of the data, so that
+afterwards each column has an empirical mean and standard deviation equal to 0
+and 1, respectively. (Scaling is not performed on `y` as it is mathematically
+redundant.) Additionally, a filter will be applied to `X` and `Z`, which filters
+columns with standard deviation less than $10^{-7}$. It is highly recommended to
+set this parameter to `TRUE`. However, default is `FALSE` to ensure downwards
+compatibility.
+
+Note: If `standardize = TRUE`, the results will be transformed back and
+presented on the original scale of the problem.
+
+* `l2_fitted_values` is an optional parameter to alter the models group lasso
+and sparse-group lasso to their corresponding counterparts where fitted values
+are used within the $l_2$-norm. The default value is `FALSE`.
+
+* `step_size` is a parameter, which is only used if `l2_fitted_values = TRUE`
+and $0 < \alpha < 1$. As the fitted SGL is solved via proximal-averaged gradient
+descent the exact impact of backtracking line search has not yet been
+investigated. Therefore, a fixed value for the step size between consecutive
+iterations needs to be provided. Default value is `0.1`.
+
+* `delta` is a ridge-type parameter which becomes important only if
+`l2_fitted_values` is `TRUE`. If for group $l$ the matrix $Z^{(l) T} Z^{(l)}$ is
+not invertible, $\delta^2$ will be added to its main diagonal. Default value is
+`1.0`.
 
 * `rel_acc` (or "$\varepsilon_{rel}$") is an optional parameter which reflects
 the stopping criterion. Convergence is assumed after iteration $m$, if the

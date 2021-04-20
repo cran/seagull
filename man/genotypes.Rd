@@ -4,8 +4,10 @@
 \name{genotypes}
 \alias{genotypes}
 \title{Simulated genotypes}
-\format{A matrix with 1000 rows and 466 columns. One row per individual.
-One column per SNP.}
+\format{
+A matrix with 1000 rows and 466 columns. One row per individual.
+One column per SNP.
+}
 \usage{
 genotypes
 }

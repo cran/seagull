@@ -4,7 +4,8 @@
 \name{seagull_data}
 \alias{seagull_data}
 \title{A simulated data set to get quickly started}
-\format{A data set which is based on 1000 individuals and 466 explanatory
+\format{
+A data set which is based on 1000 individuals and 466 explanatory
 variables.
 \describe{
 \item{genotypes}{a genotype matrix that contains information from single
@@ -31,7 +32,8 @@ corresponds to a different individual. Each column corresponds to a
 different trait. The different traits were simulated to be uncorrelated to
 one another. The trait in the first, second, and third column have a
 heritability equal to 0.1, 0.3, and 0.5, respectively.}
-}}
+}
+}
 \description{
 This data set contains a genotype matrix, phenotype vectors for
 three traits (stored in a matrix with three columns) and a vector of groups.

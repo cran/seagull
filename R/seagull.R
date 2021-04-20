@@ -1,14 +1,16 @@
 #' @title Mixed model fitting with lasso, group lasso, or sparse-group lasso
 #' regularization
 #' 
-#' @description Fit a mixed model with lasso, group lasso, or sparse-group lasso
-#' via proximal gradient descent. As this is an iterative algorithm, the step
-#' size for each iteration is determined via backtracking line search. A grid
-#' search for the regularization parameter \eqn{\lambda} is performed using warm
-#' starts. Depending on the input parameter \code{alpha} this function
-#' subsequently calls one of the three implemented
-#' \code{\link[seagull]{lasso_variants}}. None of the input variables will be
-#' centered or standardized throughout any of the calculations of this package.
+#' @description Fit a mixed model with lasso, (fitted) group lasso, or (fitted)
+#' sparse-group lasso via proximal gradient descent. As this is an iterative
+#' algorithm, the step size for each iteration is determined via backtracking
+#' line search. The only exception to this is the fitted sparse-group lasso. Its
+#' step size needs determination prior to the call. A grid search for the
+#' regularization parameter \eqn{\lambda} is performed using warm starts.
+#' Depending on the input parameters \code{alpha} and \code{l2_fitted_values}
+#' this function subsequently calls one of the five implemented
+#' \code{\link[seagull]{lasso_variants}}. Input variables will be standardized
+#' if demanded by the user.
 #' 
 #' @docType package
 #' 
@@ -18,13 +20,16 @@
 #' 
 #' @importFrom Rcpp evalCpp
 #' 
+#' @importFrom matrixStats colSds
+#' 
 #' @useDynLib seagull
 #' 
 #' @name seagull
 #' 
 #' @keywords models regression
 #' 
-#' @usage seagull(y, X, Z, weights_u, groups, alpha, rel_acc, max_lambda, xi,
+#' @usage seagull(y, X, Z, weights_u, groups, alpha, standardize,
+#'         l2_fitted_values, step_size, delta, rel_acc, max_lambda, xi,
 #'         loops_lambda, max_iter, gamma_bls, trace_progress)
 #' 
 #' @param y numeric vector of observations.
@@ -50,6 +55,29 @@
 #' '"lasso penalty" + (1-\alpha) * "group lasso penalty".} If \code{alpha=1},
 #' the lasso is called. If \code{alpha=0}, the group lasso is called. Default
 #' value is \code{0.9}.
+#' 
+#' @param standardize if \code{TRUE}, the input vector y will be centered, and
+#' each column of the input matrices X and Z will be centered and scaled.
+#' Additionally, a filter will be applied to X and Z, which filters columns with
+#' standard deviation less than \code{1.e-7}. Results will be transformed back
+#' and presented on the original scale of the problem. Default value is
+#' \code{FALSE}.
+#' 
+#' @param l2_fitted_values if \code{TRUE}, the l2-penalty is not applied on the
+#' clustered vector u, but on the clustered vector of fitted values Z*u. Default
+#' value is \code{FALSE}.
+#' 
+#' @param step_size is a parameter, which is only used if
+#' \code{l2_fitted_values = TRUE} and \eqn{0 < \alpha < 1}. As the fitted
+#' sparse-group lasso is solved via proximal-averaged gradient descent the
+#' exact impact of backtracking line search has not yet been investigated.
+#' Therefore, a fixed value for the step size between consecutive iterations
+#' needs to be provided. Default value is \code{0.1}.
+#' 
+#' @param delta is a ridge-type parameter, which is only used if
+#' \code{l2_fitted_values = TRUE}. If for group l, the matrix t(Z^(l)) %*% Z^(l)
+#' is not invertible, delta is first squared and then added to its main diagonal
+#' . Default value is \code{1.0}.
 #' 
 #' @param rel_acc (optional) relative accuracy of the solution to stop the
 #' algorithm for the current value of \eqn{\lambda}. The algorithm stops after
@@ -84,7 +112,7 @@
 #' 
 #' @param trace_progress (optional) if \code{TRUE}, a message will occur on the
 #' screen after each finished loop of the \eqn{\lambda} grid. This is
-#' particularly useful for larger data sets.
+#' particularly useful for larger data sets. Default value is \code{FALSE}.
 #' 
 #' @details The underlying mixed model has the form: \deqn{y = X b + Z u +
 #' residual,} where \eqn{b} is the vector of fixed effects and \eqn{u} is the
@@ -104,6 +132,10 @@
 #' that the weights for features in a particular group are all equal to one,
 #' this term collapses to the square root of the group size.
 #' 
+#' Furthermore, if instead of applying the \eqn{l_2}-norm on \eqn{u^{(l)}} but
+#' on the fitted values \eqn{Z^{(l)} u^{(l)}} two more algorithms may be called:
+#' either the fitted group lasso or the fitted sparse-group lasso.
+#' 
 #' In addition, the above penalty can be formally rewritten by including the
 #' fixed effects and assigning weights equal to zero to all these features. This
 #' is how the algorithms are implemented. Consequently, if a weight for any
@@ -112,6 +144,8 @@
 #' 
 #' @return A list of estimates and parameters relevant for the computation:
 #' \describe{
+#'   \item{intercept}{estimate for the general intercept. Only present, if the
+#'   parameter \code{standardize} was manually set to \code{TRUE}.}
 #'   \item{fixed_effects}{estimates for the fixed effects b, if present in the
 #'   model. Each row corresponds to a particular value of \eqn{\lambda}.}
 #'   \item{random_effects}{predictions for the random effects u. Each row
@@ -210,6 +244,10 @@ seagull <- function(
   weights_u,
   groups,
   alpha,
+  standardize,
+  l2_fitted_values,
+  step_size,
+  delta,
   rel_acc,
   max_lambda,
   xi,
@@ -383,6 +421,96 @@ seagull <- function(
   }
   
   
+  # Check standardize and give feedback to the user, if necessary:
+  if (missing(standardize)) {
+    standardize <- FALSE
+  }
+  if (is.null(standardize)) {
+    warning("The parameter standardize is equal to NULL. Reset to default value (=FALSE).")
+    standardize <- FALSE
+  } else if (is.numeric(standardize) || is.character(standardize)) {
+    warning("The parameter standardize is not Boolean. Reset to default value (=FALSE).")
+    standardize <- FALSE
+  } else if (length(standardize) > 1) {
+    warning("The length of the parameter standardize is greater than 1. Reset to default value (=FALSE).")
+    standardize <- FALSE
+  } else if (is.na(standardize)) {
+    warning("The parameter standardize is NA. Reset to default value (=FALSE).")
+    standardize <- FALSE
+  }
+  
+  
+  # Check l2_fitted_values and give feedback to the user, if necessary:
+  if (alpha < 1.0) {
+    if (missing(l2_fitted_values)) {
+      l2_fitted_values <- FALSE
+    }
+    if (is.null(l2_fitted_values)) {
+      warning("The parameter l2_fitted_values is equal to NULL. Reset to default value (=FALSE).")
+      l2_fitted_values <- FALSE
+    } else if (is.numeric(l2_fitted_values) || is.character(l2_fitted_values)) {
+      warning("The parameter l2_fitted_values is not Boolean. Reset to default value (=FALSE).")
+      l2_fitted_values <- FALSE
+    } else if (length(l2_fitted_values) > 1) {
+      warning("The length of the parameter l2_fitted_values is greater than 1. Reset to default value (=FALSE).")
+      l2_fitted_values <- FALSE
+    } else if (is.na(l2_fitted_values)) {
+      warning("The parameter l2_fitted_values is NA. Reset to default value (=FALSE).")
+      l2_fitted_values <- FALSE
+    }
+  }
+  
+  
+  # Check step_size and give feedback to the user, if necessary:
+  if ((alpha > 0.0) && (alpha < 1.0) && l2_fitted_values) {
+    if (missing(step_size)) {
+      step_size <- 0.1
+    }
+    if (is.null(step_size)) {
+      warning("The parameter step_size is equal to NULL. Reset to default value (=0.1).")
+      step_size <- 0.1
+    } else if (!is.numeric(step_size)) {
+      warning("The parameter step_size is non-numeric. Reset to default value (=0.1).")
+      step_size <- 0.1
+    } else if (length(step_size) > 1) {
+      warning("The length of the parameter step_size is greater than 1. Reset to default value (=0.1).")
+      step_size <- 0.1
+    } else if (is.na(step_size) || is.infinite(step_size)) {
+      warning("The parameter step_size is either NA, NaN, or Inf. Reset to default value (=0.1).")
+      step_size <- 0.1
+    } else if (step_size < 0.0) {
+      warning("The parameter step_size is negative. Reset to default value (=0.1).")
+      step_size <- 0.1
+    }
+    step_size <- as.double(step_size)
+  }
+  
+  
+  # Check delta and give feedback to the user, if necessary:
+  if ((alpha < 1.0) && l2_fitted_values) {
+    if (missing(delta)) {
+      delta <- 1.0
+    }
+    if (is.null(delta)) {
+      warning("The parameter delta is equal to NULL. Reset to default value (=1.0).")
+      delta <- 1.0
+    } else if (!is.numeric(delta)) {
+      warning("The parameter delta is non-numeric. Reset to default value (=1.0).")
+      delta <- 1.0
+    } else if (length(delta) > 1) {
+      warning("The length of the parameter delta is greater than 1. Reset to default value (=1.0).")
+      delta <- 1.0
+    } else if (is.na(delta) || is.infinite(delta)) {
+      warning("The parameter delta is either NA, NaN, or Inf. Reset to default value (=1.0).")
+      delta <- 1.0
+    } else if (delta < 0.0) {
+      warning("The parameter delta is negative. Reset to default value (=1.0).")
+      delta <- 1.0
+    }
+    delta <- as.double(delta)
+  }
+  
+  
   # Check for mismatching dimensions:
   if ((length(y) != dim(X)[1]) && !is.null(X)) {
     stop("Mismatching dimensions of vector y and matrix X. Please restart when solved.")
@@ -410,7 +538,8 @@ seagull <- function(
     }
   }
   X_tilde <- cbind(X, Z)
-  b_tilde <- rep(0, p)
+  b_tilde <- rep(0.0, p)
+  p_full  <- p
   
   
   if (alpha < 1.0) {
@@ -438,9 +567,93 @@ seagull <- function(
     
     
     # Renumber the vector of groups:
-    temp_diff_groups  <- sort(unique(groups))
+    temp_diff_groups <- sort(unique(groups))
     for (i in 1:length(temp_diff_groups)) {
       groups[groups==temp_diff_groups[i]] = i
+    }
+  }
+  
+  
+  # Center and scale the input, if wanted (i.e., if standardize = TRUE):
+  if (standardize) {
+    # Center y:
+    y_mean <- mean(y)
+    y      <- y - y_mean
+    
+    
+    # Standardize X_tilde and exclude columns with too small variation:
+    X_tilde_sds <- matrixStats::colSds(X_tilde)
+    if (any(X_tilde_sds < 1.e-7)) {
+      index_exclude   <- which(X_tilde_sds < 1.e-7)
+      X_tilde_sds     <- X_tilde_sds[-index_exclude]
+      X_tilde         <- X_tilde[, -index_exclude]
+      b_tilde         <- b_tilde[-index_exclude]
+      weights_u_tilde <- weights_u_tilde[-index_exclude]
+      p               <- p - length(index_exclude)
+      if (alpha < 1.0) {
+        groups <- groups[-index_exclude]
+      }
+      
+      # Catch the particular case, in which all fixed variables are filtered:
+      if (length(index_exclude) == p1) {
+        index_exclude <- -1L
+        p_full        <- p_full - p1
+        p1            <- 0L
+        if (alpha < 1.0) {
+          groups <- groups - min(groups) + 1L
+        }
+      }
+    } else {
+      index_exclude <- -1L
+    }
+    
+    X_tilde       <- scale(X_tilde, center = TRUE, scale = X_tilde_sds)
+    X_tilde_means <- attr(X_tilde, "scaled:center")
+  } else {
+    index_exclude <- -1L
+    y_mean        <- 0.0
+    X_tilde_means <- rep(0.0, p)
+    X_tilde_sds   <- rep(1.0, p)
+  }
+  
+  
+  # Compute weights for groups in the special case of l2 standardization:
+  if ((alpha < 1.0) && l2_fitted_values) {
+    number_groups    <- as.integer(max(groups))
+    weights_groups   <- rep(0, number_groups)
+    full_column_rank <- rep(FALSE, number_groups)
+    n                <- dim(X_tilde)[1]
+    
+    for (i in 1:number_groups) {
+      index_start <- as.integer(min(which(groups == unique(groups)[i])))
+      index_end   <- as.integer(max(which(groups == unique(groups)[i])))
+      group_size  <- index_end - index_start + 1L
+      X_group_i   <- X_tilde[, index_start:index_end]
+      sum_1       <- 0
+      sum_2       <- 0
+      
+      # Determine the rank of X^(i) for each group i:
+      if (group_size == 1L) {
+        rank_group_i = 1
+      } else {
+        rank_group_i = qr(X_group_i)$rank
+      }
+      
+      # Distinguish between full and non-full column rank of X^(i):
+      if ((group_size <= n) && (group_size == rank_group_i)) {
+        full_column_rank[i] <- TRUE
+        sum_1 <- group_size
+      } else {
+        singular_values <- svd(X_group_i, nu = 0, nv = 0)$d
+        
+        for (j in 1:length(singular_values)) {
+          sum_1 <- sum_1 + (singular_values[j] * singular_values[j] / (singular_values[j] * singular_values[j] + delta * delta))
+        }
+      }
+      
+      # Compute the final weight for each group i:
+      sum_2 <- sum(weights_u_tilde[index_start:index_end]) / group_size
+      weights_groups[i] <- sqrt(sum_1 * sum_2)
     }
   }
   
@@ -519,9 +732,19 @@ seagull <- function(
     if (alpha == 1.0) {
       max_lambda <- lambda_max_lasso(y, weights_u_tilde, b_tilde, X_tilde)
     } else if (alpha == 0.0) {
-      max_lambda <- lambda_max_group_lasso(y, groups, weights_u_tilde, b_tilde, X_tilde)
+      if (l2_fitted_values) {
+        max_lambda <- lambda_max_fitted_group_lasso(delta, y, groups, weights_u_tilde, weights_groups, full_column_rank, b_tilde, X_tilde)
+      } else {
+        max_lambda <- lambda_max_group_lasso(y, groups, weights_u_tilde, b_tilde, X_tilde)
+      }
     } else {
-      max_lambda <- lambda_max_sparse_group_lasso(alpha, y, groups, weights_u_tilde, b_tilde, X_tilde)
+      if (l2_fitted_values) {
+        max_lambda1 <- lambda_max_lasso(y, weights_u_tilde, b_tilde, X_tilde)
+        max_lambda2 <- lambda_max_fitted_group_lasso(delta, y, groups, weights_u_tilde, weights_groups, full_column_rank, b_tilde, X_tilde)
+        max_lambda  <- max(max_lambda1, max_lambda2)
+      } else {
+        max_lambda <- lambda_max_sparse_group_lasso(alpha, y, groups, weights_u_tilde, b_tilde, X_tilde)
+      }
     }
   }
   if (is.null(max_lambda)) {
@@ -529,45 +752,95 @@ seagull <- function(
     if (alpha == 1.0) {
       max_lambda <- lambda_max_lasso(y, weights_u_tilde, b_tilde, X_tilde)
     } else if (alpha == 0.0) {
-      max_lambda <- lambda_max_group_lasso(y, groups, weights_u_tilde, b_tilde, X_tilde)
+      if (l2_fitted_values) {
+        max_lambda <- lambda_max_fitted_group_lasso(delta, y, groups, weights_u_tilde, weights_groups, full_column_rank, b_tilde, X_tilde)
+      } else {
+        max_lambda <- lambda_max_group_lasso(y, groups, weights_u_tilde, b_tilde, X_tilde)
+      }
     } else {
-      max_lambda <- lambda_max_sparse_group_lasso(alpha, y, groups, weights_u_tilde, b_tilde, X_tilde)
+      if (l2_fitted_values) {
+        max_lambda1 <- lambda_max_lasso(y, weights_u_tilde, b_tilde, X_tilde)
+        max_lambda2 <- lambda_max_fitted_group_lasso(delta, y, groups, weights_u_tilde, weights_groups, full_column_rank, b_tilde, X_tilde)
+        max_lambda  <- max(max_lambda1, max_lambda2)
+      } else {
+        max_lambda <- lambda_max_sparse_group_lasso(alpha, y, groups, weights_u_tilde, b_tilde, X_tilde)
+      }
     }
   } else if (!is.numeric(max_lambda)) {
     warning("The parameter max_lambda is non-numeric. Use default algorithm instead.")
     if (alpha == 1.0) {
       max_lambda <- lambda_max_lasso(y, weights_u_tilde, b_tilde, X_tilde)
     } else if (alpha == 0.0) {
-      max_lambda <- lambda_max_group_lasso(y, groups, weights_u_tilde, b_tilde, X_tilde)
+      if (l2_fitted_values) {
+        max_lambda <- lambda_max_fitted_group_lasso(delta, y, groups, weights_u_tilde, weights_groups, full_column_rank, b_tilde, X_tilde)
+      } else {
+        max_lambda <- lambda_max_group_lasso(y, groups, weights_u_tilde, b_tilde, X_tilde)
+      }
     } else {
-      max_lambda <- lambda_max_sparse_group_lasso(alpha, y, groups, weights_u_tilde, b_tilde, X_tilde)
+      if (l2_fitted_values) {
+        max_lambda1 <- lambda_max_lasso(y, weights_u_tilde, b_tilde, X_tilde)
+        max_lambda2 <- lambda_max_fitted_group_lasso(delta, y, groups, weights_u_tilde, weights_groups, full_column_rank, b_tilde, X_tilde)
+        max_lambda  <- max(max_lambda1, max_lambda2)
+      } else {
+        max_lambda <- lambda_max_sparse_group_lasso(alpha, y, groups, weights_u_tilde, b_tilde, X_tilde)
+      }
     }
   } else if (length(max_lambda) > 1) {
     warning("The length of the parameter max_lambda is greater than 1. Use default algorithm instead.")
     if (alpha == 1.0) {
       max_lambda <- lambda_max_lasso(y, weights_u_tilde, b_tilde, X_tilde)
     } else if (alpha == 0.0) {
-      max_lambda <- lambda_max_group_lasso(y, groups, weights_u_tilde, b_tilde, X_tilde)
+      if (l2_fitted_values) {
+        max_lambda <- lambda_max_fitted_group_lasso(delta, y, groups, weights_u_tilde, weights_groups, full_column_rank, b_tilde, X_tilde)
+      } else {
+        max_lambda <- lambda_max_group_lasso(y, groups, weights_u_tilde, b_tilde, X_tilde)
+      }
     } else {
-      max_lambda <- lambda_max_sparse_group_lasso(alpha, y, groups, weights_u_tilde, b_tilde, X_tilde)
+      if (l2_fitted_values) {
+        max_lambda1 <- lambda_max_lasso(y, weights_u_tilde, b_tilde, X_tilde)
+        max_lambda2 <- lambda_max_fitted_group_lasso(delta, y, groups, weights_u_tilde, weights_groups, full_column_rank, b_tilde, X_tilde)
+        max_lambda  <- max(max_lambda1, max_lambda2)
+      } else {
+        max_lambda <- lambda_max_sparse_group_lasso(alpha, y, groups, weights_u_tilde, b_tilde, X_tilde)
+      }
     }
   } else if (is.na(max_lambda) || is.infinite(max_lambda)) {
     warning("The parameter max_lambda is either NA, NaN, or Inf. Use default algorithm instead.")
     if (alpha == 1.0) {
       max_lambda <- lambda_max_lasso(y, weights_u_tilde, b_tilde, X_tilde)
     } else if (alpha == 0.0) {
-      max_lambda <- lambda_max_group_lasso(y, groups, weights_u_tilde, b_tilde, X_tilde)
+      if (l2_fitted_values) {
+        max_lambda <- lambda_max_fitted_group_lasso(delta, y, groups, weights_u_tilde, weights_groups, full_column_rank, b_tilde, X_tilde)
+      } else {
+        max_lambda <- lambda_max_group_lasso(y, groups, weights_u_tilde, b_tilde, X_tilde)
+      }
     } else {
-      max_lambda <- lambda_max_sparse_group_lasso(alpha, y, groups, weights_u_tilde, b_tilde, X_tilde)
+      if (l2_fitted_values) {
+        max_lambda1 <- lambda_max_lasso(y, weights_u_tilde, b_tilde, X_tilde)
+        max_lambda2 <- lambda_max_fitted_group_lasso(delta, y, groups, weights_u_tilde, weights_groups, full_column_rank, b_tilde, X_tilde)
+        max_lambda  <- max(max_lambda1, max_lambda2)
+      } else {
+        max_lambda <- lambda_max_sparse_group_lasso(alpha, y, groups, weights_u_tilde, b_tilde, X_tilde)
+      }
     }
   } else if (max_lambda <= 0) {
     warning("The parameter max_lambda is non-positive. Use default algorithm instead.")
     if (alpha == 1.0) {
       max_lambda <- lambda_max_lasso(y, weights_u_tilde, b_tilde, X_tilde)
     } else if (alpha == 0.0) {
-      max_lambda <- lambda_max_group_lasso(y, groups, weights_u_tilde, b_tilde, X_tilde)
+      if (l2_fitted_values) {
+        max_lambda <- lambda_max_fitted_group_lasso(delta, y, groups, weights_u_tilde, weights_groups, full_column_rank, b_tilde, X_tilde)
+      } else {
+        max_lambda <- lambda_max_group_lasso(y, groups, weights_u_tilde, b_tilde, X_tilde)
+      }
     } else {
-      max_lambda <- lambda_max_sparse_group_lasso(alpha, y, groups, weights_u_tilde, b_tilde, X_tilde)
+      if (l2_fitted_values) {
+        max_lambda1 <- lambda_max_lasso(y, weights_u_tilde, b_tilde, X_tilde)
+        max_lambda2 <- lambda_max_fitted_group_lasso(delta, y, groups, weights_u_tilde, weights_groups, full_column_rank, b_tilde, X_tilde)
+        max_lambda  <- max(max_lambda1, max_lambda2)
+      } else {
+        max_lambda <- lambda_max_sparse_group_lasso(alpha, y, groups, weights_u_tilde, b_tilde, X_tilde)
+      }
     }
   }
   max_lambda <- as.double(max_lambda)
@@ -641,19 +914,29 @@ seagull <- function(
   }
   
   
-  # Calculate the solution. Choose the algorithm according to alpha:
+  # Calculate the solution. Choose the algorithm based on alpha and l2_fitted_values:
   if (alpha == 1.0) {
-    res <- seagull_lasso(y, X_tilde, weights_u_tilde, b_tilde, rel_acc,
-                         max_iter, gamma_bls, max_lambda, xi, loops_lambda, p1,
-                         trace_progress)
+    res <- seagull_lasso(y, y_mean, X_tilde, X_tilde_means, X_tilde_sds, weights_u_tilde, b_tilde, index_exclude, rel_acc,
+             max_iter, gamma_bls, max_lambda, xi, loops_lambda, p1, p_full, standardize, trace_progress)
   } else if (alpha == 0.0) {
-    res <- seagull_group_lasso(y, X_tilde, weights_u_tilde, groups, b_tilde,
-                               index_permutation, rel_acc, max_iter, gamma_bls,
-                               max_lambda, xi, loops_lambda, p1, trace_progress)
+    if (l2_fitted_values) {
+      res <- seagull_fitted_group_lasso(y, y_mean, X_tilde, X_tilde_means, X_tilde_sds, weights_u_tilde,
+               weights_groups, full_column_rank, groups, b_tilde, index_permutation, index_exclude, rel_acc, max_iter,
+               gamma_bls, max_lambda, xi, delta, loops_lambda, p1, p_full, standardize, trace_progress)
+    } else {
+      res <- seagull_group_lasso(y, y_mean, X_tilde, X_tilde_means, X_tilde_sds, weights_u_tilde, groups, b_tilde,
+               index_permutation, index_exclude, rel_acc, max_iter, gamma_bls, max_lambda, xi, loops_lambda, p1, p_full,
+               standardize, trace_progress)
+    }
   } else {
-    res <- seagull_sparse_group_lasso(y, X_tilde, weights_u_tilde, groups,
-                                      b_tilde, index_permutation, alpha,
-                                      rel_acc, max_iter, gamma_bls, max_lambda,
-                                      xi, loops_lambda, p1, trace_progress)
+    if (l2_fitted_values) {
+      res <- seagull_fitted_sparse_group_lasso(y, y_mean, X_tilde, X_tilde_means, X_tilde_sds, weights_u_tilde,
+               weights_groups, full_column_rank, groups, b_tilde, index_permutation, index_exclude, alpha, rel_acc, max_iter,
+               max_lambda, xi, delta, step_size, loops_lambda, p1, p_full, standardize, trace_progress)
+    } else {
+      res <- seagull_sparse_group_lasso(y, y_mean, X_tilde, X_tilde_means, X_tilde_sds, weights_u_tilde, groups, b_tilde,
+               index_permutation, index_exclude, alpha, rel_acc, max_iter, gamma_bls, max_lambda, xi, loops_lambda, p1, p_full,
+               standardize, trace_progress)
+    }
   }
 }

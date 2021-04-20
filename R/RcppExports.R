@@ -5,6 +5,43 @@
 #' 
 #' @name lambda_max
 #' 
+#' @aliases lambda_max_fitted_group_lasso
+#' 
+#' @param DELTA numeric value, which is squared and added to the main diagonal
+#' of \eqn{Z^{(l)T} Z^{(l)}} for group l, if this matrix is not invertible.
+#' 
+#' @param VECTOR_Y numeric vector of observations.
+#' 
+#' @param VECTOR_GROUPS integer vector specifying which effect (fixed and
+#' random) belongs to which group.
+#' 
+#' @param VECTOR_WEIGHTS_FEATURES numeric vector of weights for the vectors of
+#' fixed and random effects \eqn{[b^T, u^T]^T}. The entries may be permuted
+#' corresponding to their group assignments.
+#' 
+#' @param VECTOR_WEIGHTS_GROUPS numeric vector of pre-calculated weights for
+#' each group.
+#' 
+#' @param VECTOR_FULL_COLUMN_RANK Boolean vector, which harbors the information
+#' of whether or not the group-wise parts of the filtered matrix Z, i.e.,
+#' \eqn{Z^{(l)}} for each group l, have full column rank.
+#' 
+#' @param VECTOR_BETA numeric vector of features. At the end of this function,
+#' the random effects are initialized with zero, but the fixed effects are
+#' initialized via a least squares procedure.
+#' 
+#' @param MATRIX_X numeric design matrix relating y to fixed and random
+#' effects \eqn{[X Z]}.
+#' 
+#' @export
+lambda_max_fitted_group_lasso <- function(DELTA, VECTOR_Y, VECTOR_GROUPS, VECTOR_WEIGHTS_FEATURES, VECTOR_WEIGHTS_GROUPS, VECTOR_FULL_COLUMN_RANK, VECTOR_BETA, MATRIX_X) {
+    .Call('_seagull_lambda_max_fitted_group_lasso', PACKAGE = 'seagull', DELTA, VECTOR_Y, VECTOR_GROUPS, VECTOR_WEIGHTS_FEATURES, VECTOR_WEIGHTS_GROUPS, VECTOR_FULL_COLUMN_RANK, VECTOR_BETA, MATRIX_X)
+}
+
+#' Maximal \eqn{\lambda}
+#' 
+#' @name lambda_max
+#' 
 #' @aliases lambda_max_group_lasso
 #' 
 #' @param VECTOR_Y numeric vector of observations.
@@ -151,7 +188,201 @@ seagull_bisection <- function(ROWS, ALPHA, LEFT_BORDER, RIGHT_BORDER, GROUP_WEIG
     .Call('_seagull_seagull_bisection', PACKAGE = 'seagull', ROWS, ALPHA, LEFT_BORDER, RIGHT_BORDER, GROUP_WEIGHT, VECTOR_WEIGHTS, VECTOR_IN)
 }
 
-#' Lasso, group lasso, and sparse-group lasso
+#' Lasso, (fitted) group lasso, and (fitted) sparse-group lasso
+#' 
+#' @name lasso_variants
+#' 
+#' @aliases fitted_group_lasso
+#' 
+#' @param VECTOR_Yc numeric vector of observations.
+#' 
+#' @param Y_MEAN arithmetic mean of VECTOR_Yc.
+#' 
+#' @param MATRIX_Xc numeric design matrix relating y to fixed and random
+#' effects \eqn{[X Z]}. The columns may be permuted corresponding to their
+#' group assignments.
+#' 
+#' @param VECTOR_Xc_MEANS numeric vector of arithmetic means of each column
+#' of MATRIX_Xc.
+#' 
+#' @param VECTOR_Xc_STANDARD_DEVIATIONS numeric vector of estimates of
+#' standard deviations of each column of MATRIX_Xc. Values are calculated via
+#' the function \code{colSds} from the R-package \code{matrixStats}.
+#' 
+#' @param VECTOR_WEIGHTS_FEATURESc numeric vector of weights for the vectors
+#' of fixed and random effects \eqn{[b^T, u^T]^T}. The entries may be permuted
+#' corresponding to their group assignments.
+#' 
+#' @param VECTOR_WEIGHTS_GROUPSc numeric vector of pre-calculated weights for
+#' each group.
+#' 
+#' @param VECTOR_FULL_COLUMN_RANK Boolean vector, which harbors the information
+#' of whether or not the group-wise parts of the filtered matrix Z, i.e.,
+#' \eqn{Z^{(l)}} for each group l, have full column rank.
+#' 
+#' @param VECTOR_GROUPS integer vector specifying which effect (fixed and
+#' random) belongs to which group.
+#' 
+#' @param VECTOR_BETAc numeric vector whose partitions will be returned
+#' (partition 1: estimates of fixed effects, partition 2: predictions of random
+#' effects). During the computation the entries may be in permuted order. But
+#' they will be returned according to the order of the user's input.
+#' 
+#' @param VECTOR_INDEX_PERMUTATION integer vector that contains information
+#' about the original order of the user's input.
+#' 
+#' @param VECTOR_INDEX_EXCLUDE integer vector, which contains the indices of
+#' every column that was filtered due to low standard deviation. This vector
+#' only has an effect, if \code{standardize = TRUE} is used.
+#' 
+#' @param EPSILON_CONVERGENCE value for relative accuracy of the solution to
+#' stop the algorithm for the current value of \eqn{\lambda}. The algorithm
+#' stops after iteration m, if: \deqn{||sol^{(m)} - sol^{(m-1)}||_\infty <
+#' \epsilon_c * ||sol1{(m-1)}||_2.}
+#' 
+#' @param ITERATION_MAX maximum number of iterations for each value of the
+#' penalty parameter \eqn{\lambda}. Determines the end of the calculation if
+#' the algorithm didn't converge according to \code{EPSILON_CONVERGENCE}
+#' before.
+#' 
+#' @param GAMMA multiplicative parameter to decrease the step size during
+#' backtracking line search. Has to satisfy: \eqn{0 < \gamma < 1}.
+#' 
+#' @param LAMBDA_MAX maximum value for the penalty parameter. This is the start
+#' value for the grid search of the penalty parameter \eqn{\lambda}.
+#' 
+#' @param PROPORTION_XI multiplicative parameter to determine the minimum value
+#' of \eqn{\lambda} for the grid search, i.e. \eqn{\lambda_{min} = \xi *
+#' \lambda_{max}}. Has to satisfy: \eqn{0 < \xi \le 1}. If \code{xi=1}, only a
+#' single solution for \eqn{\lambda = \lambda_{max}} is calculated.
+#' 
+#' @param DELTA numeric value, which is squared and added to the main diagonal
+#' of \eqn{Z^{(l)T} Z^{(l)}} for group l, if this matrix is not invertible.
+#' 
+#' @param NUMBER_INTERVALS number of lambdas for the grid search between
+#' \eqn{\lambda_{max}} and \eqn{\xi * \lambda_{max}}. Loops are performed on a 
+#' logarithmic grid.
+#' 
+#' @param NUMBER_FIXED_EFFECTS non-negative integer to determine the number of
+#' fixed effects present in the mixed model.
+#' 
+#' @param NUMBER_VARIABLES non-negative integer which corresponds to the sum
+#' of all columns of the initial model matrices X and Z.
+#' 
+#' @param INTERNAL_STANDARDIZATION if \code{TRUE}, the input vector y is
+#' centered, and each column of the input matrices X and Z is centered and
+#' scaled with an internal process. Additionally, a filter is applied to X and
+#' Z, which filters columns with standard deviation less than \code{1.e-7}.
+#' 
+#' @param TRACE_PROGRESS if \code{TRUE}, a message will occur on the screen
+#' after each finished loop of the \eqn{\lambda} grid. This is particularly
+#' useful for larger data sets.
+#' 
+#' @export
+seagull_fitted_group_lasso <- function(VECTOR_Yc, Y_MEAN, MATRIX_Xc, VECTOR_Xc_MEANS, VECTOR_Xc_STANDARD_DEVIATIONS, VECTOR_WEIGHTS_FEATURESc, VECTOR_WEIGHTS_GROUPSc, VECTOR_FULL_COLUMN_RANK, VECTOR_GROUPS, VECTOR_BETAc, VECTOR_INDEX_PERMUTATION, VECTOR_INDEX_EXCLUDE, EPSILON_CONVERGENCE, ITERATION_MAX, GAMMA, LAMBDA_MAX, PROPORTION_XI, DELTA, NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS, NUMBER_VARIABLES, INTERNAL_STANDARDIZATION, TRACE_PROGRESS) {
+    .Call('_seagull_seagull_fitted_group_lasso', PACKAGE = 'seagull', VECTOR_Yc, Y_MEAN, MATRIX_Xc, VECTOR_Xc_MEANS, VECTOR_Xc_STANDARD_DEVIATIONS, VECTOR_WEIGHTS_FEATURESc, VECTOR_WEIGHTS_GROUPSc, VECTOR_FULL_COLUMN_RANK, VECTOR_GROUPS, VECTOR_BETAc, VECTOR_INDEX_PERMUTATION, VECTOR_INDEX_EXCLUDE, EPSILON_CONVERGENCE, ITERATION_MAX, GAMMA, LAMBDA_MAX, PROPORTION_XI, DELTA, NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS, NUMBER_VARIABLES, INTERNAL_STANDARDIZATION, TRACE_PROGRESS)
+}
+
+#' Lasso, (fitted) group lasso, and (fitted) sparse-group lasso
+#' 
+#' @name lasso_variants
+#' 
+#' @aliases fitted_sparse_group_lasso
+#' 
+#' @param VECTOR_Yc numeric vector of observations.
+#' 
+#' @param Y_MEAN arithmetic mean of VECTOR_Yc.
+#' 
+#' @param MATRIX_Xc numeric design matrix relating y to fixed and random
+#' effects \eqn{[X Z]}. The columns may be permuted corresponding to their
+#' group assignments.
+#' 
+#' @param VECTOR_Xc_MEANS numeric vector of arithmetic means of each column
+#' of MATRIX_Xc.
+#' 
+#' @param VECTOR_Xc_STANDARD_DEVIATIONS numeric vector of estimates of
+#' standard deviations of each column of MATRIX_Xc. Values are calculated via
+#' the function \code{colSds} from the R-package \code{matrixStats}.
+#' 
+#' @param VECTOR_WEIGHTS_FEATURESc numeric vector of weights for the vectors
+#' of fixed and random effects \eqn{[b^T, u^T]^T}. The entries may be permuted
+#' corresponding to their group assignments.
+#' 
+#' @param VECTOR_WEIGHTS_GROUPSc numeric vector of pre-calculated weights for
+#' each group.
+#' 
+#' @param VECTOR_FULL_COLUMN_RANK Boolean vector, which harbors the information
+#' of whether or not the group-wise parts of the filtered matrix Z, i.e.,
+#' \eqn{Z^{(l)}} for each group l, have full column rank.
+#' 
+#' @param VECTOR_GROUPS integer vector specifying which effect (fixed and
+#' random) belongs to which group.
+#' 
+#' @param VECTOR_BETAc numeric vector whose partitions will be returned
+#' (partition 1: estimates of fixed effects, partition 2: predictions of random
+#' effects). During the computation the entries may be in permuted order. But
+#' they will be returned according to the order of the user's input.
+#' 
+#' @param VECTOR_INDEX_PERMUTATION integer vector that contains information
+#' about the original order of the user's input.
+#' 
+#' @param VECTOR_INDEX_EXCLUDE integer vector, which contains the indices of
+#' every column that was filtered due to low standard deviation. This vector
+#' only has an effect, if \code{standardize = TRUE} is used.
+#' 
+#' @param ALPHA mixing parameter of the penalty terms. Satisfies: \eqn{0 <
+#' \alpha < 1}. The penalty term looks as follows: \deqn{\alpha *
+#' "lasso penalty" + (1-\alpha) * "group lasso penalty".}
+#' 
+#' @param EPSILON_CONVERGENCE value for relative accuracy of the solution to
+#' stop the algorithm for the current value of \eqn{\lambda}. The algorithm
+#' stops after iteration m, if: \deqn{||sol^{(m)} - sol^{(m-1)}||_\infty <
+#' \epsilon_c * ||sol1{(m-1)}||_2.}
+#' 
+#' @param ITERATION_MAX maximum number of iterations for each value of the
+#' penalty parameter \eqn{\lambda}. Determines the end of the calculation if
+#' the algorithm didn't converge according to \code{EPSILON_CONVERGENCE}
+#' before.
+#' 
+#' @param LAMBDA_MAX maximum value for the penalty parameter. This is the start
+#' value for the grid search of the penalty parameter \eqn{\lambda}.
+#' 
+#' @param PROPORTION_XI multiplicative parameter to determine the minimum value
+#' of \eqn{\lambda} for the grid search, i.e. \eqn{\lambda_{min} = \xi *
+#' \lambda_{max}}. Has to satisfy: \eqn{0 < \xi \le 1}. If \code{xi=1}, only a
+#' single solution for \eqn{\lambda = \lambda_{max}} is calculated.
+#' 
+#' @param DELTA numeric value, which is squared and added to the main diagonal
+#' of \eqn{Z^{(l)T} Z^{(l)}} for group l, if this matrix is not invertible.
+#' 
+#' @param STEP_SIZE numeric value which represents the size of the step between
+#' consecutive iterations.
+#' 
+#' @param NUMBER_INTERVALS number of lambdas for the grid search between
+#' \eqn{\lambda_{max}} and \eqn{\xi * \lambda_{max}}. Loops are performed on a 
+#' logarithmic grid.
+#' 
+#' @param NUMBER_FIXED_EFFECTS non-negative integer to determine the number of
+#' fixed effects present in the mixed model.
+#' 
+#' @param NUMBER_VARIABLES non-negative integer which corresponds to the sum
+#' of all columns of the initial model matrices X and Z.
+#' 
+#' @param INTERNAL_STANDARDIZATION if \code{TRUE}, the input vector y is
+#' centered, and each column of the input matrices X and Z is centered and
+#' scaled with an internal process. Additionally, a filter is applied to X and
+#' Z, which filters columns with standard deviation less than \code{1.e-7}.
+#' 
+#' @param TRACE_PROGRESS if \code{TRUE}, a message will occur on the screen
+#' after each finished loop of the \eqn{\lambda} grid. This is particularly
+#' useful for larger data sets.
+#' 
+#' @export
+seagull_fitted_sparse_group_lasso <- function(VECTOR_Yc, Y_MEAN, MATRIX_Xc, VECTOR_Xc_MEANS, VECTOR_Xc_STANDARD_DEVIATIONS, VECTOR_WEIGHTS_FEATURESc, VECTOR_WEIGHTS_GROUPSc, VECTOR_FULL_COLUMN_RANK, VECTOR_GROUPS, VECTOR_BETAc, VECTOR_INDEX_PERMUTATION, VECTOR_INDEX_EXCLUDE, ALPHA, EPSILON_CONVERGENCE, ITERATION_MAX, LAMBDA_MAX, PROPORTION_XI, DELTA, STEP_SIZE, NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS, NUMBER_VARIABLES, INTERNAL_STANDARDIZATION, TRACE_PROGRESS) {
+    .Call('_seagull_seagull_fitted_sparse_group_lasso', PACKAGE = 'seagull', VECTOR_Yc, Y_MEAN, MATRIX_Xc, VECTOR_Xc_MEANS, VECTOR_Xc_STANDARD_DEVIATIONS, VECTOR_WEIGHTS_FEATURESc, VECTOR_WEIGHTS_GROUPSc, VECTOR_FULL_COLUMN_RANK, VECTOR_GROUPS, VECTOR_BETAc, VECTOR_INDEX_PERMUTATION, VECTOR_INDEX_EXCLUDE, ALPHA, EPSILON_CONVERGENCE, ITERATION_MAX, LAMBDA_MAX, PROPORTION_XI, DELTA, STEP_SIZE, NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS, NUMBER_VARIABLES, INTERNAL_STANDARDIZATION, TRACE_PROGRESS)
+}
+
+#' Lasso, (fitted) group lasso, and (fitted) sparse-group lasso
 #' 
 #' @name lasso_variants
 #' 
@@ -159,9 +390,18 @@ seagull_bisection <- function(ROWS, ALPHA, LEFT_BORDER, RIGHT_BORDER, GROUP_WEIG
 #' 
 #' @param VECTOR_Yc numeric vector of observations.
 #' 
+#' @param Y_MEAN arithmetic mean of VECTOR_Yc.
+#' 
 #' @param MATRIX_Xc numeric design matrix relating y to fixed and random
 #' effects \eqn{[X Z]}. The columns may be permuted corresponding to their
 #' group assignments.
+#' 
+#' @param VECTOR_Xc_MEANS numeric vector of arithmetic means of each column
+#' of MATRIX_Xc.
+#' 
+#' @param VECTOR_Xc_STANDARD_DEVIATIONS numeric vector of estimates of
+#' standard deviations of each column of MATRIX_Xc. Values are calculated via
+#' the function \code{colSds} from the R-package \code{matrixStats}.
 #' 
 #' @param VECTOR_WEIGHTS_FEATURESc numeric vector of weights for the vectors
 #' of fixed and random effects \eqn{[b^T, u^T]^T}. The entries may be permuted
@@ -178,8 +418,12 @@ seagull_bisection <- function(ROWS, ALPHA, LEFT_BORDER, RIGHT_BORDER, GROUP_WEIG
 #' @param VECTOR_INDEX_PERMUTATION integer vector that contains information
 #' about the original order of the user's input.
 #' 
+#' @param VECTOR_INDEX_EXCLUDE integer vector, which contains the indices of
+#' every column that was filtered due to low standard deviation. This vector
+#' only has an effect, if \code{standardize = TRUE} is used.
+#' 
 #' @param EPSILON_CONVERGENCE value for relative accuracy of the solution to
-#' stop the algortihm for the current value of \eqn{\lambda}. The algorithm
+#' stop the algorithm for the current value of \eqn{\lambda}. The algorithm
 #' stops after iteration m, if: \deqn{||sol^{(m)} - sol^{(m-1)}||_\infty <
 #' \epsilon_c * ||sol1{(m-1)}||_2.}
 #' 
@@ -206,15 +450,23 @@ seagull_bisection <- function(ROWS, ALPHA, LEFT_BORDER, RIGHT_BORDER, GROUP_WEIG
 #' @param NUMBER_FIXED_EFFECTS non-negative integer to determine the number of
 #' fixed effects present in the mixed model.
 #' 
-#' @param TRACE_PROGRESS if \code{TRUE}, a messsage will occur on the screen
+#' @param NUMBER_VARIABLES non-negative integer which corresponds to the sum
+#' of all columns of the initial model matrices X and Z.
+#' 
+#' @param INTERNAL_STANDARDIZATION if \code{TRUE}, the input vector y is
+#' centered, and each column of the input matrices X and Z is centered and
+#' scaled with an internal process. Additionally, a filter is applied to X and
+#' Z, which filters columns with standard deviation less than \code{1.e-7}.
+#' 
+#' @param TRACE_PROGRESS if \code{TRUE}, a message will occur on the screen
 #' after each finished loop of the \eqn{\lambda} grid. This is particularly
 #' useful for larger data sets.
 #' 
-seagull_group_lasso <- function(VECTOR_Yc, MATRIX_Xc, VECTOR_WEIGHTS_FEATURESc, VECTOR_GROUPS, VECTOR_BETAc, VECTOR_INDEX_PERMUTATION, EPSILON_CONVERGENCE, ITERATION_MAX, GAMMA, LAMBDA_MAX, PROPORTION_XI, NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS, TRACE_PROGRESS) {
-    .Call('_seagull_seagull_group_lasso', PACKAGE = 'seagull', VECTOR_Yc, MATRIX_Xc, VECTOR_WEIGHTS_FEATURESc, VECTOR_GROUPS, VECTOR_BETAc, VECTOR_INDEX_PERMUTATION, EPSILON_CONVERGENCE, ITERATION_MAX, GAMMA, LAMBDA_MAX, PROPORTION_XI, NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS, TRACE_PROGRESS)
+seagull_group_lasso <- function(VECTOR_Yc, Y_MEAN, MATRIX_Xc, VECTOR_Xc_MEANS, VECTOR_Xc_STANDARD_DEVIATIONS, VECTOR_WEIGHTS_FEATURESc, VECTOR_GROUPS, VECTOR_BETAc, VECTOR_INDEX_PERMUTATION, VECTOR_INDEX_EXCLUDE, EPSILON_CONVERGENCE, ITERATION_MAX, GAMMA, LAMBDA_MAX, PROPORTION_XI, NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS, NUMBER_VARIABLES, INTERNAL_STANDARDIZATION, TRACE_PROGRESS) {
+    .Call('_seagull_seagull_group_lasso', PACKAGE = 'seagull', VECTOR_Yc, Y_MEAN, MATRIX_Xc, VECTOR_Xc_MEANS, VECTOR_Xc_STANDARD_DEVIATIONS, VECTOR_WEIGHTS_FEATURESc, VECTOR_GROUPS, VECTOR_BETAc, VECTOR_INDEX_PERMUTATION, VECTOR_INDEX_EXCLUDE, EPSILON_CONVERGENCE, ITERATION_MAX, GAMMA, LAMBDA_MAX, PROPORTION_XI, NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS, NUMBER_VARIABLES, INTERNAL_STANDARDIZATION, TRACE_PROGRESS)
 }
 
-#' Lasso, group lasso, and sparse-group lasso
+#' Lasso, (fitted) group lasso, and (fitted) sparse-group lasso
 #' 
 #' @name lasso_variants
 #' 
@@ -222,9 +474,18 @@ seagull_group_lasso <- function(VECTOR_Yc, MATRIX_Xc, VECTOR_WEIGHTS_FEATURESc, 
 #' 
 #' @param VECTOR_Yc numeric vector of observations.
 #' 
+#' @param Y_MEAN arithmetic mean of VECTOR_Yc.
+#' 
 #' @param MATRIX_Xc numeric design matrix relating y to fixed and random
 #' effects \eqn{[X Z]}. The columns may be permuted corresponding to their
 #' group assignments.
+#' 
+#' @param VECTOR_Xc_MEANS numeric vector of arithmetic means of each column
+#' of MATRIX_Xc.
+#' 
+#' @param VECTOR_Xc_STANDARD_DEVIATIONS numeric vector of estimates of
+#' standard deviations of each column of MATRIX_Xc. Values are calculated via
+#' the function \code{colSds} from the R-package \code{matrixStats}.
 #' 
 #' @param VECTOR_WEIGHTS_FEATURESc numeric vector of weights for the vectors
 #' of fixed and random effects \eqn{[b^T, u^T]^T}. The entries may be permuted
@@ -235,8 +496,12 @@ seagull_group_lasso <- function(VECTOR_Yc, MATRIX_Xc, VECTOR_WEIGHTS_FEATURESc, 
 #' effects). During the computation the entries may be in permuted order. But
 #' they will be returned according to the order of the user's input.
 #' 
+#' @param VECTOR_INDEX_EXCLUDE integer vector, which contains the indices of
+#' every column that was filtered due to low standard deviation. This vector
+#' only has an effect, if \code{standardize = TRUE} is used.
+#' 
 #' @param EPSILON_CONVERGENCE value for relative accuracy of the solution to
-#' stop the algortihm for the current value of \eqn{\lambda}. The algorithm
+#' stop the algorithm for the current value of \eqn{\lambda}. The algorithm
 #' stops after iteration m, if: \deqn{||sol^{(m)} - sol^{(m-1)}||_\infty <
 #' \epsilon_c * ||sol1{(m-1)}||_2.}
 #' 
@@ -263,15 +528,23 @@ seagull_group_lasso <- function(VECTOR_Yc, MATRIX_Xc, VECTOR_WEIGHTS_FEATURESc, 
 #' @param NUMBER_FIXED_EFFECTS non-negative integer to determine the number of
 #' fixed effects present in the mixed model.
 #' 
-#' @param TRACE_PROGRESS if \code{TRUE}, a messsage will occur on the screen
+#' @param NUMBER_VARIABLES non-negative integer which corresponds to the sum
+#' of all columns of the initial model matrices X and Z.
+#' 
+#' @param INTERNAL_STANDARDIZATION if \code{TRUE}, the input vector y is
+#' centered, and each column of the input matrices X and Z is centered and
+#' scaled with an internal process. Additionally, a filter is applied to X and
+#' Z, which filters columns with standard deviation less than \code{1.e-7}.
+#' 
+#' @param TRACE_PROGRESS if \code{TRUE}, a message will occur on the screen
 #' after each finished loop of the \eqn{\lambda} grid. This is particularly
 #' useful for larger data sets.
 #' 
-seagull_lasso <- function(VECTOR_Yc, MATRIX_Xc, VECTOR_WEIGHTS_FEATURESc, VECTOR_BETAc, EPSILON_CONVERGENCE, ITERATION_MAX, GAMMA, LAMBDA_MAX, PROPORTION_XI, NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS, TRACE_PROGRESS) {
-    .Call('_seagull_seagull_lasso', PACKAGE = 'seagull', VECTOR_Yc, MATRIX_Xc, VECTOR_WEIGHTS_FEATURESc, VECTOR_BETAc, EPSILON_CONVERGENCE, ITERATION_MAX, GAMMA, LAMBDA_MAX, PROPORTION_XI, NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS, TRACE_PROGRESS)
+seagull_lasso <- function(VECTOR_Yc, Y_MEAN, MATRIX_Xc, VECTOR_Xc_MEANS, VECTOR_Xc_STANDARD_DEVIATIONS, VECTOR_WEIGHTS_FEATURESc, VECTOR_BETAc, VECTOR_INDEX_EXCLUDE, EPSILON_CONVERGENCE, ITERATION_MAX, GAMMA, LAMBDA_MAX, PROPORTION_XI, NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS, NUMBER_VARIABLES, INTERNAL_STANDARDIZATION, TRACE_PROGRESS) {
+    .Call('_seagull_seagull_lasso', PACKAGE = 'seagull', VECTOR_Yc, Y_MEAN, MATRIX_Xc, VECTOR_Xc_MEANS, VECTOR_Xc_STANDARD_DEVIATIONS, VECTOR_WEIGHTS_FEATURESc, VECTOR_BETAc, VECTOR_INDEX_EXCLUDE, EPSILON_CONVERGENCE, ITERATION_MAX, GAMMA, LAMBDA_MAX, PROPORTION_XI, NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS, NUMBER_VARIABLES, INTERNAL_STANDARDIZATION, TRACE_PROGRESS)
 }
 
-#' Lasso, group lasso, and sparse-group lasso
+#' Lasso, (fitted) group lasso, and (fitted) sparse-group lasso
 #' 
 #' @description Fit a mixed model with lasso, group lasso, or sparse-group
 #' lasso via proximal gradient descent. As this is an iterative algorithm, the
@@ -283,6 +556,9 @@ seagull_lasso <- function(VECTOR_Yc, MATRIX_Xc, VECTOR_WEIGHTS_FEATURESc, VECTOR
 #' features) is then: \deqn{\alpha \lambda ||u||_1 + (1 - \alpha) \lambda
 #' \sum_l \omega^G_l ||u^{(l)}||_2.} If \eqn{\alpha = 1}, this leads to the
 #' lasso. If \eqn{\alpha = 0}, this leads to the group lasso.
+#' Furthermore, if instead of applying the \eqn{l_2}-norm on \eqn{u^{(l)}} but
+#' on the fitted values \eqn{Z^{(l)} u^{(l)}} two more algorithms may be
+#' called: either the fitted group lasso or the fitted sparse-group lasso.
 #' 
 #' @name lasso_variants
 #' 
@@ -292,9 +568,18 @@ seagull_lasso <- function(VECTOR_Yc, MATRIX_Xc, VECTOR_WEIGHTS_FEATURESc, VECTOR
 #' 
 #' @param VECTOR_Yc numeric vector of observations.
 #' 
+#' @param Y_MEAN arithmetic mean of VECTOR_Yc.
+#' 
 #' @param MATRIX_Xc numeric design matrix relating y to fixed and random
 #' effects \eqn{[X Z]}. The columns may be permuted corresponding to their
 #' group assignments.
+#' 
+#' @param VECTOR_Xc_MEANS numeric vector of arithmetic means of each column
+#' of MATRIX_Xc.
+#' 
+#' @param VECTOR_Xc_STANDARD_DEVIATIONS numeric vector of estimates of
+#' standard deviations of each column of MATRIX_Xc. Values are calculated via
+#' the function \code{colSds} from the R-package \code{matrixStats}.
 #' 
 #' @param VECTOR_WEIGHTS_FEATURESc numeric vector of weights for the vectors
 #' of fixed and random effects \eqn{[b^T, u^T]^T}. The entries may be permuted
@@ -310,6 +595,10 @@ seagull_lasso <- function(VECTOR_Yc, MATRIX_Xc, VECTOR_WEIGHTS_FEATURESc, VECTOR
 #' 
 #' @param VECTOR_INDEX_PERMUTATION integer vector that contains information
 #' about the original order of the user's input.
+#' 
+#' @param VECTOR_INDEX_EXCLUDE integer vector, which contains the indices of
+#' every column that was filtered due to low standard deviation. This vector
+#' only has an effect, if \code{standardize = TRUE} is used.
 #' 
 #' @param ALPHA mixing parameter of the penalty terms. Satisfies: \eqn{0 <
 #' \alpha < 1}. The penalty term looks as follows: \deqn{\alpha *
@@ -343,12 +632,21 @@ seagull_lasso <- function(VECTOR_Yc, MATRIX_Xc, VECTOR_WEIGHTS_FEATURESc, VECTOR
 #' @param NUMBER_FIXED_EFFECTS non-negative integer to determine the number of
 #' fixed effects present in the mixed model.
 #' 
+#' @param NUMBER_VARIABLES non-negative integer which corresponds to the sum
+#' of all columns of the initial model matrices X and Z.
+#' 
+#' @param INTERNAL_STANDARDIZATION if \code{TRUE}, the input vector y is
+#' centered, and each column of the input matrices X and Z is centered and
+#' scaled with an internal process. Additionally, a filter is applied to X and
+#' Z, which filters columns with standard deviation less than \code{1.e-7}.
+#' 
 #' @param TRACE_PROGRESS if \code{TRUE}, a message will occur on the screen
 #' after each finished loop of the \eqn{\lambda} grid. This is particularly
 #' useful for larger data sets.
 #' 
 #' @return A list of estimates and parameters relevant for the computation:
 #' \describe{
+#'   \item{intercept}{estimate for the intercept, if present in the model.}
 #'   \item{fixed_effects}{estimates for the fixed effects b, if present in the
 #'   model. Each row corresponds to a particular value of \eqn{\lambda}.}
 #'   \item{random_effects}{predictions for the random effects u. Each row
@@ -365,7 +663,7 @@ seagull_lasso <- function(VECTOR_Yc, MATRIX_Xc, VECTOR_WEIGHTS_FEATURESc, VECTOR
 #' lasso), \code{max_iter = ITERATION_MAX}, \code{gamma_bls = GAMMA}, \code{xi
 #' = PROPORTION_XI}, and \code{loops_lambda = NUMBER_INTERVALS}.
 #' 
-seagull_sparse_group_lasso <- function(VECTOR_Yc, MATRIX_Xc, VECTOR_WEIGHTS_FEATURESc, VECTOR_GROUPS, VECTOR_BETAc, VECTOR_INDEX_PERMUTATION, ALPHA, EPSILON_CONVERGENCE, ITERATION_MAX, GAMMA, LAMBDA_MAX, PROPORTION_XI, NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS, TRACE_PROGRESS) {
-    .Call('_seagull_seagull_sparse_group_lasso', PACKAGE = 'seagull', VECTOR_Yc, MATRIX_Xc, VECTOR_WEIGHTS_FEATURESc, VECTOR_GROUPS, VECTOR_BETAc, VECTOR_INDEX_PERMUTATION, ALPHA, EPSILON_CONVERGENCE, ITERATION_MAX, GAMMA, LAMBDA_MAX, PROPORTION_XI, NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS, TRACE_PROGRESS)
+seagull_sparse_group_lasso <- function(VECTOR_Yc, Y_MEAN, MATRIX_Xc, VECTOR_Xc_MEANS, VECTOR_Xc_STANDARD_DEVIATIONS, VECTOR_WEIGHTS_FEATURESc, VECTOR_GROUPS, VECTOR_BETAc, VECTOR_INDEX_PERMUTATION, VECTOR_INDEX_EXCLUDE, ALPHA, EPSILON_CONVERGENCE, ITERATION_MAX, GAMMA, LAMBDA_MAX, PROPORTION_XI, NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS, NUMBER_VARIABLES, INTERNAL_STANDARDIZATION, TRACE_PROGRESS) {
+    .Call('_seagull_seagull_sparse_group_lasso', PACKAGE = 'seagull', VECTOR_Yc, Y_MEAN, MATRIX_Xc, VECTOR_Xc_MEANS, VECTOR_Xc_STANDARD_DEVIATIONS, VECTOR_WEIGHTS_FEATURESc, VECTOR_GROUPS, VECTOR_BETAc, VECTOR_INDEX_PERMUTATION, VECTOR_INDEX_EXCLUDE, ALPHA, EPSILON_CONVERGENCE, ITERATION_MAX, GAMMA, LAMBDA_MAX, PROPORTION_XI, NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS, NUMBER_VARIABLES, INTERNAL_STANDARDIZATION, TRACE_PROGRESS)
 }
 

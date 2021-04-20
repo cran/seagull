@@ -6,6 +6,24 @@
 
 using namespace Rcpp;
 
+// lambda_max_fitted_group_lasso
+double lambda_max_fitted_group_lasso(double DELTA, arma::colvec& VECTOR_Y, IntegerVector VECTOR_GROUPS, arma::colvec& VECTOR_WEIGHTS_FEATURES, arma::colvec& VECTOR_WEIGHTS_GROUPS, LogicalVector VECTOR_FULL_COLUMN_RANK, arma::colvec& VECTOR_BETA, arma::mat& MATRIX_X);
+RcppExport SEXP _seagull_lambda_max_fitted_group_lasso(SEXP DELTASEXP, SEXP VECTOR_YSEXP, SEXP VECTOR_GROUPSSEXP, SEXP VECTOR_WEIGHTS_FEATURESSEXP, SEXP VECTOR_WEIGHTS_GROUPSSEXP, SEXP VECTOR_FULL_COLUMN_RANKSEXP, SEXP VECTOR_BETASEXP, SEXP MATRIX_XSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< double >::type DELTA(DELTASEXP);
+    Rcpp::traits::input_parameter< arma::colvec& >::type VECTOR_Y(VECTOR_YSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type VECTOR_GROUPS(VECTOR_GROUPSSEXP);
+    Rcpp::traits::input_parameter< arma::colvec& >::type VECTOR_WEIGHTS_FEATURES(VECTOR_WEIGHTS_FEATURESSEXP);
+    Rcpp::traits::input_parameter< arma::colvec& >::type VECTOR_WEIGHTS_GROUPS(VECTOR_WEIGHTS_GROUPSSEXP);
+    Rcpp::traits::input_parameter< LogicalVector >::type VECTOR_FULL_COLUMN_RANK(VECTOR_FULL_COLUMN_RANKSEXP);
+    Rcpp::traits::input_parameter< arma::colvec& >::type VECTOR_BETA(VECTOR_BETASEXP);
+    Rcpp::traits::input_parameter< arma::mat& >::type MATRIX_X(MATRIX_XSEXP);
+    rcpp_result_gen = Rcpp::wrap(lambda_max_fitted_group_lasso(DELTA, VECTOR_Y, VECTOR_GROUPS, VECTOR_WEIGHTS_FEATURES, VECTOR_WEIGHTS_GROUPS, VECTOR_FULL_COLUMN_RANK, VECTOR_BETA, MATRIX_X));
+    return rcpp_result_gen;
+END_RCPP
+}
 // lambda_max_group_lasso
 double lambda_max_group_lasso(arma::colvec& VECTOR_Y, IntegerVector VECTOR_GROUPS, arma::colvec& VECTOR_WEIGHTS_FEATURES, arma::colvec& VECTOR_BETA, arma::mat& MATRIX_X);
 RcppExport SEXP _seagull_lambda_max_group_lasso(SEXP VECTOR_YSEXP, SEXP VECTOR_GROUPSSEXP, SEXP VECTOR_WEIGHTS_FEATURESSEXP, SEXP VECTOR_BETASEXP, SEXP MATRIX_XSEXP) {
@@ -68,18 +86,89 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// seagull_group_lasso
-List seagull_group_lasso(NumericVector VECTOR_Yc, NumericMatrix MATRIX_Xc, NumericVector VECTOR_WEIGHTS_FEATURESc, IntegerVector VECTOR_GROUPS, NumericVector VECTOR_BETAc, IntegerVector VECTOR_INDEX_PERMUTATION, double EPSILON_CONVERGENCE, int ITERATION_MAX, double GAMMA, double LAMBDA_MAX, double PROPORTION_XI, int NUMBER_INTERVALS, int NUMBER_FIXED_EFFECTS, bool TRACE_PROGRESS);
-RcppExport SEXP _seagull_seagull_group_lasso(SEXP VECTOR_YcSEXP, SEXP MATRIX_XcSEXP, SEXP VECTOR_WEIGHTS_FEATUREScSEXP, SEXP VECTOR_GROUPSSEXP, SEXP VECTOR_BETAcSEXP, SEXP VECTOR_INDEX_PERMUTATIONSEXP, SEXP EPSILON_CONVERGENCESEXP, SEXP ITERATION_MAXSEXP, SEXP GAMMASEXP, SEXP LAMBDA_MAXSEXP, SEXP PROPORTION_XISEXP, SEXP NUMBER_INTERVALSSEXP, SEXP NUMBER_FIXED_EFFECTSSEXP, SEXP TRACE_PROGRESSSEXP) {
+// seagull_fitted_group_lasso
+List seagull_fitted_group_lasso(NumericVector VECTOR_Yc, double Y_MEAN, NumericMatrix MATRIX_Xc, NumericVector VECTOR_Xc_MEANS, NumericVector VECTOR_Xc_STANDARD_DEVIATIONS, NumericVector VECTOR_WEIGHTS_FEATURESc, NumericVector VECTOR_WEIGHTS_GROUPSc, LogicalVector VECTOR_FULL_COLUMN_RANK, IntegerVector VECTOR_GROUPS, NumericVector VECTOR_BETAc, IntegerVector VECTOR_INDEX_PERMUTATION, IntegerVector VECTOR_INDEX_EXCLUDE, double EPSILON_CONVERGENCE, int ITERATION_MAX, double GAMMA, double LAMBDA_MAX, double PROPORTION_XI, double DELTA, int NUMBER_INTERVALS, int NUMBER_FIXED_EFFECTS, int NUMBER_VARIABLES, bool INTERNAL_STANDARDIZATION, bool TRACE_PROGRESS);
+RcppExport SEXP _seagull_seagull_fitted_group_lasso(SEXP VECTOR_YcSEXP, SEXP Y_MEANSEXP, SEXP MATRIX_XcSEXP, SEXP VECTOR_Xc_MEANSSEXP, SEXP VECTOR_Xc_STANDARD_DEVIATIONSSEXP, SEXP VECTOR_WEIGHTS_FEATUREScSEXP, SEXP VECTOR_WEIGHTS_GROUPScSEXP, SEXP VECTOR_FULL_COLUMN_RANKSEXP, SEXP VECTOR_GROUPSSEXP, SEXP VECTOR_BETAcSEXP, SEXP VECTOR_INDEX_PERMUTATIONSEXP, SEXP VECTOR_INDEX_EXCLUDESEXP, SEXP EPSILON_CONVERGENCESEXP, SEXP ITERATION_MAXSEXP, SEXP GAMMASEXP, SEXP LAMBDA_MAXSEXP, SEXP PROPORTION_XISEXP, SEXP DELTASEXP, SEXP NUMBER_INTERVALSSEXP, SEXP NUMBER_FIXED_EFFECTSSEXP, SEXP NUMBER_VARIABLESSEXP, SEXP INTERNAL_STANDARDIZATIONSEXP, SEXP TRACE_PROGRESSSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< NumericVector >::type VECTOR_Yc(VECTOR_YcSEXP);
+    Rcpp::traits::input_parameter< double >::type Y_MEAN(Y_MEANSEXP);
     Rcpp::traits::input_parameter< NumericMatrix >::type MATRIX_Xc(MATRIX_XcSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type VECTOR_Xc_MEANS(VECTOR_Xc_MEANSSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type VECTOR_Xc_STANDARD_DEVIATIONS(VECTOR_Xc_STANDARD_DEVIATIONSSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type VECTOR_WEIGHTS_FEATURESc(VECTOR_WEIGHTS_FEATUREScSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type VECTOR_WEIGHTS_GROUPSc(VECTOR_WEIGHTS_GROUPScSEXP);
+    Rcpp::traits::input_parameter< LogicalVector >::type VECTOR_FULL_COLUMN_RANK(VECTOR_FULL_COLUMN_RANKSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type VECTOR_GROUPS(VECTOR_GROUPSSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type VECTOR_BETAc(VECTOR_BETAcSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type VECTOR_INDEX_PERMUTATION(VECTOR_INDEX_PERMUTATIONSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type VECTOR_INDEX_EXCLUDE(VECTOR_INDEX_EXCLUDESEXP);
+    Rcpp::traits::input_parameter< double >::type EPSILON_CONVERGENCE(EPSILON_CONVERGENCESEXP);
+    Rcpp::traits::input_parameter< int >::type ITERATION_MAX(ITERATION_MAXSEXP);
+    Rcpp::traits::input_parameter< double >::type GAMMA(GAMMASEXP);
+    Rcpp::traits::input_parameter< double >::type LAMBDA_MAX(LAMBDA_MAXSEXP);
+    Rcpp::traits::input_parameter< double >::type PROPORTION_XI(PROPORTION_XISEXP);
+    Rcpp::traits::input_parameter< double >::type DELTA(DELTASEXP);
+    Rcpp::traits::input_parameter< int >::type NUMBER_INTERVALS(NUMBER_INTERVALSSEXP);
+    Rcpp::traits::input_parameter< int >::type NUMBER_FIXED_EFFECTS(NUMBER_FIXED_EFFECTSSEXP);
+    Rcpp::traits::input_parameter< int >::type NUMBER_VARIABLES(NUMBER_VARIABLESSEXP);
+    Rcpp::traits::input_parameter< bool >::type INTERNAL_STANDARDIZATION(INTERNAL_STANDARDIZATIONSEXP);
+    Rcpp::traits::input_parameter< bool >::type TRACE_PROGRESS(TRACE_PROGRESSSEXP);
+    rcpp_result_gen = Rcpp::wrap(seagull_fitted_group_lasso(VECTOR_Yc, Y_MEAN, MATRIX_Xc, VECTOR_Xc_MEANS, VECTOR_Xc_STANDARD_DEVIATIONS, VECTOR_WEIGHTS_FEATURESc, VECTOR_WEIGHTS_GROUPSc, VECTOR_FULL_COLUMN_RANK, VECTOR_GROUPS, VECTOR_BETAc, VECTOR_INDEX_PERMUTATION, VECTOR_INDEX_EXCLUDE, EPSILON_CONVERGENCE, ITERATION_MAX, GAMMA, LAMBDA_MAX, PROPORTION_XI, DELTA, NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS, NUMBER_VARIABLES, INTERNAL_STANDARDIZATION, TRACE_PROGRESS));
+    return rcpp_result_gen;
+END_RCPP
+}
+// seagull_fitted_sparse_group_lasso
+List seagull_fitted_sparse_group_lasso(NumericVector VECTOR_Yc, double Y_MEAN, NumericMatrix MATRIX_Xc, NumericVector VECTOR_Xc_MEANS, NumericVector VECTOR_Xc_STANDARD_DEVIATIONS, NumericVector VECTOR_WEIGHTS_FEATURESc, NumericVector VECTOR_WEIGHTS_GROUPSc, LogicalVector VECTOR_FULL_COLUMN_RANK, IntegerVector VECTOR_GROUPS, NumericVector VECTOR_BETAc, IntegerVector VECTOR_INDEX_PERMUTATION, IntegerVector VECTOR_INDEX_EXCLUDE, double ALPHA, double EPSILON_CONVERGENCE, int ITERATION_MAX, double LAMBDA_MAX, double PROPORTION_XI, double DELTA, double STEP_SIZE, int NUMBER_INTERVALS, int NUMBER_FIXED_EFFECTS, int NUMBER_VARIABLES, bool INTERNAL_STANDARDIZATION, bool TRACE_PROGRESS);
+RcppExport SEXP _seagull_seagull_fitted_sparse_group_lasso(SEXP VECTOR_YcSEXP, SEXP Y_MEANSEXP, SEXP MATRIX_XcSEXP, SEXP VECTOR_Xc_MEANSSEXP, SEXP VECTOR_Xc_STANDARD_DEVIATIONSSEXP, SEXP VECTOR_WEIGHTS_FEATUREScSEXP, SEXP VECTOR_WEIGHTS_GROUPScSEXP, SEXP VECTOR_FULL_COLUMN_RANKSEXP, SEXP VECTOR_GROUPSSEXP, SEXP VECTOR_BETAcSEXP, SEXP VECTOR_INDEX_PERMUTATIONSEXP, SEXP VECTOR_INDEX_EXCLUDESEXP, SEXP ALPHASEXP, SEXP EPSILON_CONVERGENCESEXP, SEXP ITERATION_MAXSEXP, SEXP LAMBDA_MAXSEXP, SEXP PROPORTION_XISEXP, SEXP DELTASEXP, SEXP STEP_SIZESEXP, SEXP NUMBER_INTERVALSSEXP, SEXP NUMBER_FIXED_EFFECTSSEXP, SEXP NUMBER_VARIABLESSEXP, SEXP INTERNAL_STANDARDIZATIONSEXP, SEXP TRACE_PROGRESSSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type VECTOR_Yc(VECTOR_YcSEXP);
+    Rcpp::traits::input_parameter< double >::type Y_MEAN(Y_MEANSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type MATRIX_Xc(MATRIX_XcSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type VECTOR_Xc_MEANS(VECTOR_Xc_MEANSSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type VECTOR_Xc_STANDARD_DEVIATIONS(VECTOR_Xc_STANDARD_DEVIATIONSSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type VECTOR_WEIGHTS_FEATURESc(VECTOR_WEIGHTS_FEATUREScSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type VECTOR_WEIGHTS_GROUPSc(VECTOR_WEIGHTS_GROUPScSEXP);
+    Rcpp::traits::input_parameter< LogicalVector >::type VECTOR_FULL_COLUMN_RANK(VECTOR_FULL_COLUMN_RANKSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type VECTOR_GROUPS(VECTOR_GROUPSSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type VECTOR_BETAc(VECTOR_BETAcSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type VECTOR_INDEX_PERMUTATION(VECTOR_INDEX_PERMUTATIONSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type VECTOR_INDEX_EXCLUDE(VECTOR_INDEX_EXCLUDESEXP);
+    Rcpp::traits::input_parameter< double >::type ALPHA(ALPHASEXP);
+    Rcpp::traits::input_parameter< double >::type EPSILON_CONVERGENCE(EPSILON_CONVERGENCESEXP);
+    Rcpp::traits::input_parameter< int >::type ITERATION_MAX(ITERATION_MAXSEXP);
+    Rcpp::traits::input_parameter< double >::type LAMBDA_MAX(LAMBDA_MAXSEXP);
+    Rcpp::traits::input_parameter< double >::type PROPORTION_XI(PROPORTION_XISEXP);
+    Rcpp::traits::input_parameter< double >::type DELTA(DELTASEXP);
+    Rcpp::traits::input_parameter< double >::type STEP_SIZE(STEP_SIZESEXP);
+    Rcpp::traits::input_parameter< int >::type NUMBER_INTERVALS(NUMBER_INTERVALSSEXP);
+    Rcpp::traits::input_parameter< int >::type NUMBER_FIXED_EFFECTS(NUMBER_FIXED_EFFECTSSEXP);
+    Rcpp::traits::input_parameter< int >::type NUMBER_VARIABLES(NUMBER_VARIABLESSEXP);
+    Rcpp::traits::input_parameter< bool >::type INTERNAL_STANDARDIZATION(INTERNAL_STANDARDIZATIONSEXP);
+    Rcpp::traits::input_parameter< bool >::type TRACE_PROGRESS(TRACE_PROGRESSSEXP);
+    rcpp_result_gen = Rcpp::wrap(seagull_fitted_sparse_group_lasso(VECTOR_Yc, Y_MEAN, MATRIX_Xc, VECTOR_Xc_MEANS, VECTOR_Xc_STANDARD_DEVIATIONS, VECTOR_WEIGHTS_FEATURESc, VECTOR_WEIGHTS_GROUPSc, VECTOR_FULL_COLUMN_RANK, VECTOR_GROUPS, VECTOR_BETAc, VECTOR_INDEX_PERMUTATION, VECTOR_INDEX_EXCLUDE, ALPHA, EPSILON_CONVERGENCE, ITERATION_MAX, LAMBDA_MAX, PROPORTION_XI, DELTA, STEP_SIZE, NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS, NUMBER_VARIABLES, INTERNAL_STANDARDIZATION, TRACE_PROGRESS));
+    return rcpp_result_gen;
+END_RCPP
+}
+// seagull_group_lasso
+List seagull_group_lasso(NumericVector VECTOR_Yc, double Y_MEAN, NumericMatrix MATRIX_Xc, NumericVector VECTOR_Xc_MEANS, NumericVector VECTOR_Xc_STANDARD_DEVIATIONS, NumericVector VECTOR_WEIGHTS_FEATURESc, IntegerVector VECTOR_GROUPS, NumericVector VECTOR_BETAc, IntegerVector VECTOR_INDEX_PERMUTATION, IntegerVector VECTOR_INDEX_EXCLUDE, double EPSILON_CONVERGENCE, int ITERATION_MAX, double GAMMA, double LAMBDA_MAX, double PROPORTION_XI, int NUMBER_INTERVALS, int NUMBER_FIXED_EFFECTS, int NUMBER_VARIABLES, bool INTERNAL_STANDARDIZATION, bool TRACE_PROGRESS);
+RcppExport SEXP _seagull_seagull_group_lasso(SEXP VECTOR_YcSEXP, SEXP Y_MEANSEXP, SEXP MATRIX_XcSEXP, SEXP VECTOR_Xc_MEANSSEXP, SEXP VECTOR_Xc_STANDARD_DEVIATIONSSEXP, SEXP VECTOR_WEIGHTS_FEATUREScSEXP, SEXP VECTOR_GROUPSSEXP, SEXP VECTOR_BETAcSEXP, SEXP VECTOR_INDEX_PERMUTATIONSEXP, SEXP VECTOR_INDEX_EXCLUDESEXP, SEXP EPSILON_CONVERGENCESEXP, SEXP ITERATION_MAXSEXP, SEXP GAMMASEXP, SEXP LAMBDA_MAXSEXP, SEXP PROPORTION_XISEXP, SEXP NUMBER_INTERVALSSEXP, SEXP NUMBER_FIXED_EFFECTSSEXP, SEXP NUMBER_VARIABLESSEXP, SEXP INTERNAL_STANDARDIZATIONSEXP, SEXP TRACE_PROGRESSSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type VECTOR_Yc(VECTOR_YcSEXP);
+    Rcpp::traits::input_parameter< double >::type Y_MEAN(Y_MEANSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type MATRIX_Xc(MATRIX_XcSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type VECTOR_Xc_MEANS(VECTOR_Xc_MEANSSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type VECTOR_Xc_STANDARD_DEVIATIONS(VECTOR_Xc_STANDARD_DEVIATIONSSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type VECTOR_WEIGHTS_FEATURESc(VECTOR_WEIGHTS_FEATUREScSEXP);
     Rcpp::traits::input_parameter< IntegerVector >::type VECTOR_GROUPS(VECTOR_GROUPSSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type VECTOR_BETAc(VECTOR_BETAcSEXP);
     Rcpp::traits::input_parameter< IntegerVector >::type VECTOR_INDEX_PERMUTATION(VECTOR_INDEX_PERMUTATIONSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type VECTOR_INDEX_EXCLUDE(VECTOR_INDEX_EXCLUDESEXP);
     Rcpp::traits::input_parameter< double >::type EPSILON_CONVERGENCE(EPSILON_CONVERGENCESEXP);
     Rcpp::traits::input_parameter< int >::type ITERATION_MAX(ITERATION_MAXSEXP);
     Rcpp::traits::input_parameter< double >::type GAMMA(GAMMASEXP);
@@ -87,21 +176,27 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type PROPORTION_XI(PROPORTION_XISEXP);
     Rcpp::traits::input_parameter< int >::type NUMBER_INTERVALS(NUMBER_INTERVALSSEXP);
     Rcpp::traits::input_parameter< int >::type NUMBER_FIXED_EFFECTS(NUMBER_FIXED_EFFECTSSEXP);
+    Rcpp::traits::input_parameter< int >::type NUMBER_VARIABLES(NUMBER_VARIABLESSEXP);
+    Rcpp::traits::input_parameter< bool >::type INTERNAL_STANDARDIZATION(INTERNAL_STANDARDIZATIONSEXP);
     Rcpp::traits::input_parameter< bool >::type TRACE_PROGRESS(TRACE_PROGRESSSEXP);
-    rcpp_result_gen = Rcpp::wrap(seagull_group_lasso(VECTOR_Yc, MATRIX_Xc, VECTOR_WEIGHTS_FEATURESc, VECTOR_GROUPS, VECTOR_BETAc, VECTOR_INDEX_PERMUTATION, EPSILON_CONVERGENCE, ITERATION_MAX, GAMMA, LAMBDA_MAX, PROPORTION_XI, NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS, TRACE_PROGRESS));
+    rcpp_result_gen = Rcpp::wrap(seagull_group_lasso(VECTOR_Yc, Y_MEAN, MATRIX_Xc, VECTOR_Xc_MEANS, VECTOR_Xc_STANDARD_DEVIATIONS, VECTOR_WEIGHTS_FEATURESc, VECTOR_GROUPS, VECTOR_BETAc, VECTOR_INDEX_PERMUTATION, VECTOR_INDEX_EXCLUDE, EPSILON_CONVERGENCE, ITERATION_MAX, GAMMA, LAMBDA_MAX, PROPORTION_XI, NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS, NUMBER_VARIABLES, INTERNAL_STANDARDIZATION, TRACE_PROGRESS));
     return rcpp_result_gen;
 END_RCPP
 }
 // seagull_lasso
-List seagull_lasso(NumericVector VECTOR_Yc, NumericMatrix MATRIX_Xc, NumericVector VECTOR_WEIGHTS_FEATURESc, NumericVector VECTOR_BETAc, double EPSILON_CONVERGENCE, int ITERATION_MAX, double GAMMA, double LAMBDA_MAX, double PROPORTION_XI, int NUMBER_INTERVALS, int NUMBER_FIXED_EFFECTS, bool TRACE_PROGRESS);
-RcppExport SEXP _seagull_seagull_lasso(SEXP VECTOR_YcSEXP, SEXP MATRIX_XcSEXP, SEXP VECTOR_WEIGHTS_FEATUREScSEXP, SEXP VECTOR_BETAcSEXP, SEXP EPSILON_CONVERGENCESEXP, SEXP ITERATION_MAXSEXP, SEXP GAMMASEXP, SEXP LAMBDA_MAXSEXP, SEXP PROPORTION_XISEXP, SEXP NUMBER_INTERVALSSEXP, SEXP NUMBER_FIXED_EFFECTSSEXP, SEXP TRACE_PROGRESSSEXP) {
+List seagull_lasso(NumericVector VECTOR_Yc, double Y_MEAN, NumericMatrix MATRIX_Xc, NumericVector VECTOR_Xc_MEANS, NumericVector VECTOR_Xc_STANDARD_DEVIATIONS, NumericVector VECTOR_WEIGHTS_FEATURESc, NumericVector VECTOR_BETAc, IntegerVector VECTOR_INDEX_EXCLUDE, double EPSILON_CONVERGENCE, int ITERATION_MAX, double GAMMA, double LAMBDA_MAX, double PROPORTION_XI, int NUMBER_INTERVALS, int NUMBER_FIXED_EFFECTS, int NUMBER_VARIABLES, bool INTERNAL_STANDARDIZATION, bool TRACE_PROGRESS);
+RcppExport SEXP _seagull_seagull_lasso(SEXP VECTOR_YcSEXP, SEXP Y_MEANSEXP, SEXP MATRIX_XcSEXP, SEXP VECTOR_Xc_MEANSSEXP, SEXP VECTOR_Xc_STANDARD_DEVIATIONSSEXP, SEXP VECTOR_WEIGHTS_FEATUREScSEXP, SEXP VECTOR_BETAcSEXP, SEXP VECTOR_INDEX_EXCLUDESEXP, SEXP EPSILON_CONVERGENCESEXP, SEXP ITERATION_MAXSEXP, SEXP GAMMASEXP, SEXP LAMBDA_MAXSEXP, SEXP PROPORTION_XISEXP, SEXP NUMBER_INTERVALSSEXP, SEXP NUMBER_FIXED_EFFECTSSEXP, SEXP NUMBER_VARIABLESSEXP, SEXP INTERNAL_STANDARDIZATIONSEXP, SEXP TRACE_PROGRESSSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< NumericVector >::type VECTOR_Yc(VECTOR_YcSEXP);
+    Rcpp::traits::input_parameter< double >::type Y_MEAN(Y_MEANSEXP);
     Rcpp::traits::input_parameter< NumericMatrix >::type MATRIX_Xc(MATRIX_XcSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type VECTOR_Xc_MEANS(VECTOR_Xc_MEANSSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type VECTOR_Xc_STANDARD_DEVIATIONS(VECTOR_Xc_STANDARD_DEVIATIONSSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type VECTOR_WEIGHTS_FEATURESc(VECTOR_WEIGHTS_FEATUREScSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type VECTOR_BETAc(VECTOR_BETAcSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type VECTOR_INDEX_EXCLUDE(VECTOR_INDEX_EXCLUDESEXP);
     Rcpp::traits::input_parameter< double >::type EPSILON_CONVERGENCE(EPSILON_CONVERGENCESEXP);
     Rcpp::traits::input_parameter< int >::type ITERATION_MAX(ITERATION_MAXSEXP);
     Rcpp::traits::input_parameter< double >::type GAMMA(GAMMASEXP);
@@ -109,23 +204,29 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type PROPORTION_XI(PROPORTION_XISEXP);
     Rcpp::traits::input_parameter< int >::type NUMBER_INTERVALS(NUMBER_INTERVALSSEXP);
     Rcpp::traits::input_parameter< int >::type NUMBER_FIXED_EFFECTS(NUMBER_FIXED_EFFECTSSEXP);
+    Rcpp::traits::input_parameter< int >::type NUMBER_VARIABLES(NUMBER_VARIABLESSEXP);
+    Rcpp::traits::input_parameter< bool >::type INTERNAL_STANDARDIZATION(INTERNAL_STANDARDIZATIONSEXP);
     Rcpp::traits::input_parameter< bool >::type TRACE_PROGRESS(TRACE_PROGRESSSEXP);
-    rcpp_result_gen = Rcpp::wrap(seagull_lasso(VECTOR_Yc, MATRIX_Xc, VECTOR_WEIGHTS_FEATURESc, VECTOR_BETAc, EPSILON_CONVERGENCE, ITERATION_MAX, GAMMA, LAMBDA_MAX, PROPORTION_XI, NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS, TRACE_PROGRESS));
+    rcpp_result_gen = Rcpp::wrap(seagull_lasso(VECTOR_Yc, Y_MEAN, MATRIX_Xc, VECTOR_Xc_MEANS, VECTOR_Xc_STANDARD_DEVIATIONS, VECTOR_WEIGHTS_FEATURESc, VECTOR_BETAc, VECTOR_INDEX_EXCLUDE, EPSILON_CONVERGENCE, ITERATION_MAX, GAMMA, LAMBDA_MAX, PROPORTION_XI, NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS, NUMBER_VARIABLES, INTERNAL_STANDARDIZATION, TRACE_PROGRESS));
     return rcpp_result_gen;
 END_RCPP
 }
 // seagull_sparse_group_lasso
-List seagull_sparse_group_lasso(NumericVector VECTOR_Yc, NumericMatrix MATRIX_Xc, NumericVector VECTOR_WEIGHTS_FEATURESc, IntegerVector VECTOR_GROUPS, NumericVector VECTOR_BETAc, IntegerVector VECTOR_INDEX_PERMUTATION, double ALPHA, double EPSILON_CONVERGENCE, int ITERATION_MAX, double GAMMA, double LAMBDA_MAX, double PROPORTION_XI, int NUMBER_INTERVALS, int NUMBER_FIXED_EFFECTS, bool TRACE_PROGRESS);
-RcppExport SEXP _seagull_seagull_sparse_group_lasso(SEXP VECTOR_YcSEXP, SEXP MATRIX_XcSEXP, SEXP VECTOR_WEIGHTS_FEATUREScSEXP, SEXP VECTOR_GROUPSSEXP, SEXP VECTOR_BETAcSEXP, SEXP VECTOR_INDEX_PERMUTATIONSEXP, SEXP ALPHASEXP, SEXP EPSILON_CONVERGENCESEXP, SEXP ITERATION_MAXSEXP, SEXP GAMMASEXP, SEXP LAMBDA_MAXSEXP, SEXP PROPORTION_XISEXP, SEXP NUMBER_INTERVALSSEXP, SEXP NUMBER_FIXED_EFFECTSSEXP, SEXP TRACE_PROGRESSSEXP) {
+List seagull_sparse_group_lasso(NumericVector VECTOR_Yc, double Y_MEAN, NumericMatrix MATRIX_Xc, NumericVector VECTOR_Xc_MEANS, NumericVector VECTOR_Xc_STANDARD_DEVIATIONS, NumericVector VECTOR_WEIGHTS_FEATURESc, IntegerVector VECTOR_GROUPS, NumericVector VECTOR_BETAc, IntegerVector VECTOR_INDEX_PERMUTATION, IntegerVector VECTOR_INDEX_EXCLUDE, double ALPHA, double EPSILON_CONVERGENCE, int ITERATION_MAX, double GAMMA, double LAMBDA_MAX, double PROPORTION_XI, int NUMBER_INTERVALS, int NUMBER_FIXED_EFFECTS, int NUMBER_VARIABLES, bool INTERNAL_STANDARDIZATION, bool TRACE_PROGRESS);
+RcppExport SEXP _seagull_seagull_sparse_group_lasso(SEXP VECTOR_YcSEXP, SEXP Y_MEANSEXP, SEXP MATRIX_XcSEXP, SEXP VECTOR_Xc_MEANSSEXP, SEXP VECTOR_Xc_STANDARD_DEVIATIONSSEXP, SEXP VECTOR_WEIGHTS_FEATUREScSEXP, SEXP VECTOR_GROUPSSEXP, SEXP VECTOR_BETAcSEXP, SEXP VECTOR_INDEX_PERMUTATIONSEXP, SEXP VECTOR_INDEX_EXCLUDESEXP, SEXP ALPHASEXP, SEXP EPSILON_CONVERGENCESEXP, SEXP ITERATION_MAXSEXP, SEXP GAMMASEXP, SEXP LAMBDA_MAXSEXP, SEXP PROPORTION_XISEXP, SEXP NUMBER_INTERVALSSEXP, SEXP NUMBER_FIXED_EFFECTSSEXP, SEXP NUMBER_VARIABLESSEXP, SEXP INTERNAL_STANDARDIZATIONSEXP, SEXP TRACE_PROGRESSSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< NumericVector >::type VECTOR_Yc(VECTOR_YcSEXP);
+    Rcpp::traits::input_parameter< double >::type Y_MEAN(Y_MEANSEXP);
     Rcpp::traits::input_parameter< NumericMatrix >::type MATRIX_Xc(MATRIX_XcSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type VECTOR_Xc_MEANS(VECTOR_Xc_MEANSSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type VECTOR_Xc_STANDARD_DEVIATIONS(VECTOR_Xc_STANDARD_DEVIATIONSSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type VECTOR_WEIGHTS_FEATURESc(VECTOR_WEIGHTS_FEATUREScSEXP);
     Rcpp::traits::input_parameter< IntegerVector >::type VECTOR_GROUPS(VECTOR_GROUPSSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type VECTOR_BETAc(VECTOR_BETAcSEXP);
     Rcpp::traits::input_parameter< IntegerVector >::type VECTOR_INDEX_PERMUTATION(VECTOR_INDEX_PERMUTATIONSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type VECTOR_INDEX_EXCLUDE(VECTOR_INDEX_EXCLUDESEXP);
     Rcpp::traits::input_parameter< double >::type ALPHA(ALPHASEXP);
     Rcpp::traits::input_parameter< double >::type EPSILON_CONVERGENCE(EPSILON_CONVERGENCESEXP);
     Rcpp::traits::input_parameter< int >::type ITERATION_MAX(ITERATION_MAXSEXP);
@@ -134,20 +235,25 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type PROPORTION_XI(PROPORTION_XISEXP);
     Rcpp::traits::input_parameter< int >::type NUMBER_INTERVALS(NUMBER_INTERVALSSEXP);
     Rcpp::traits::input_parameter< int >::type NUMBER_FIXED_EFFECTS(NUMBER_FIXED_EFFECTSSEXP);
+    Rcpp::traits::input_parameter< int >::type NUMBER_VARIABLES(NUMBER_VARIABLESSEXP);
+    Rcpp::traits::input_parameter< bool >::type INTERNAL_STANDARDIZATION(INTERNAL_STANDARDIZATIONSEXP);
     Rcpp::traits::input_parameter< bool >::type TRACE_PROGRESS(TRACE_PROGRESSSEXP);
-    rcpp_result_gen = Rcpp::wrap(seagull_sparse_group_lasso(VECTOR_Yc, MATRIX_Xc, VECTOR_WEIGHTS_FEATURESc, VECTOR_GROUPS, VECTOR_BETAc, VECTOR_INDEX_PERMUTATION, ALPHA, EPSILON_CONVERGENCE, ITERATION_MAX, GAMMA, LAMBDA_MAX, PROPORTION_XI, NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS, TRACE_PROGRESS));
+    rcpp_result_gen = Rcpp::wrap(seagull_sparse_group_lasso(VECTOR_Yc, Y_MEAN, MATRIX_Xc, VECTOR_Xc_MEANS, VECTOR_Xc_STANDARD_DEVIATIONS, VECTOR_WEIGHTS_FEATURESc, VECTOR_GROUPS, VECTOR_BETAc, VECTOR_INDEX_PERMUTATION, VECTOR_INDEX_EXCLUDE, ALPHA, EPSILON_CONVERGENCE, ITERATION_MAX, GAMMA, LAMBDA_MAX, PROPORTION_XI, NUMBER_INTERVALS, NUMBER_FIXED_EFFECTS, NUMBER_VARIABLES, INTERNAL_STANDARDIZATION, TRACE_PROGRESS));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_seagull_lambda_max_fitted_group_lasso", (DL_FUNC) &_seagull_lambda_max_fitted_group_lasso, 8},
     {"_seagull_lambda_max_group_lasso", (DL_FUNC) &_seagull_lambda_max_group_lasso, 5},
     {"_seagull_lambda_max_lasso", (DL_FUNC) &_seagull_lambda_max_lasso, 4},
     {"_seagull_lambda_max_sparse_group_lasso", (DL_FUNC) &_seagull_lambda_max_sparse_group_lasso, 6},
     {"_seagull_seagull_bisection", (DL_FUNC) &_seagull_seagull_bisection, 7},
-    {"_seagull_seagull_group_lasso", (DL_FUNC) &_seagull_seagull_group_lasso, 14},
-    {"_seagull_seagull_lasso", (DL_FUNC) &_seagull_seagull_lasso, 12},
-    {"_seagull_seagull_sparse_group_lasso", (DL_FUNC) &_seagull_seagull_sparse_group_lasso, 15},
+    {"_seagull_seagull_fitted_group_lasso", (DL_FUNC) &_seagull_seagull_fitted_group_lasso, 23},
+    {"_seagull_seagull_fitted_sparse_group_lasso", (DL_FUNC) &_seagull_seagull_fitted_sparse_group_lasso, 24},
+    {"_seagull_seagull_group_lasso", (DL_FUNC) &_seagull_seagull_group_lasso, 20},
+    {"_seagull_seagull_lasso", (DL_FUNC) &_seagull_seagull_lasso, 18},
+    {"_seagull_seagull_sparse_group_lasso", (DL_FUNC) &_seagull_seagull_sparse_group_lasso, 21},
     {NULL, NULL, 0}
 };
 
